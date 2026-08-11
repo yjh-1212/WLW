@@ -186,6 +186,7 @@ export class LogisticsStoryController {
     const vehicleCab = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.68, 0.62), glowMaterial('#fff1c7', 0.98));
     vehicleCab.position.x = 0.72;
     this.vehicle.add(vehicleBody, vehicleCab);
+    this.vehicle.position.copy(this.infrastructureCurve.getPointAt(0));
     this.infrastructureFlow.add(this.vehicle);
     this.transportTrail = Array.from({ length: 6 }, (_, index) => {
       const particle = new THREE.Mesh(new THREE.SphereGeometry(0.14 - index * 0.012, 8, 6), glowMaterial(MAP_THEME.infrastructureBright, 0.7 - index * 0.08));
@@ -317,25 +318,23 @@ export class LogisticsStoryController {
       this.setWeights({ infrastructure: 0.88, operation: 0.88, digital: 0.92 }, 0.7);
       camera.setExploded(true);
     } else if (stage.id.startsWith('digital_')) {
-      this.setWeights({ infrastructure: 0.22, operation: 0.30, digital: 1 }, 0.9);
-      const offset = stage.id === 'digital_contract' ? new THREE.Vector3(4, -68, 50) : new THREE.Vector3(6, -82, 60);
-      this.moveCamera(this.digitalBusPoint, offset, 1.1);
+      this.setWeights({ infrastructure: 0, operation: 0, digital: 1 }, 0.7);
+      this.moveLayerOverview(STACK.digital, 1.1);
     } else if (stage.id === 'drill_operation') {
-      this.setWeights({ infrastructure: 0.08, operation: 1, digital: 0.12 }, 1.3);
-      // 镜头下降到数字层与运营层之间，完整看到运营层且不再被上层遮挡。
-      this.moveCamera(this.operationHubPoint, new THREE.Vector3(5, -108, 13), 1.8);
+      // 先淡出数字层，再显示运营层；镜头保持与炸开视图相同的俯视角度。
+      this.moveLayerOverview(STACK.operation, 1.5);
     } else if (stage.id === 'operation') {
-      this.setWeights({ infrastructure: 0.06, operation: 1, digital: 0.02 }, 0.8);
-      this.moveCamera(this.operationHubPoint, new THREE.Vector3(5, -108, 13), 0.8);
+      this.setWeights({ infrastructure: 0, operation: 1, digital: 0 }, 0.45);
+      this.moveLayerOverview(STACK.operation, 0.7);
     } else if (stage.id === 'drill_infrastructure') {
-      this.setWeights({ infrastructure: 1, operation: 0.12, digital: 0.02 }, 1.0);
-      this.moveCamera(new THREE.Vector3(0, 0, STACK.infrastructure), new THREE.Vector3(5, -108, 13), 1.5);
+      // 同样先淡出运营层，再以相同俯视角展示基础设施层全貌。
+      this.moveLayerOverview(STACK.infrastructure, 1.35);
     } else if (stage.id === 'infrastructure') {
-      this.setWeights({ infrastructure: 1, operation: 0.02, digital: 0.01 }, 0.7);
-      this.moveCamera(new THREE.Vector3(0, 0, STACK.infrastructure), new THREE.Vector3(5, -108, 13), 0.7);
+      this.setWeights({ infrastructure: 1, operation: 0, digital: 0 }, 0.45);
+      this.moveLayerOverview(STACK.infrastructure, 0.7);
     } else if (stage.id === 'feedback') {
       this.setWeights({ infrastructure: 0.78, operation: 0.72, digital: 0.82 }, 1.0);
-      camera.moveTo(new THREE.Vector3(6, -138, 122), new THREE.Vector3(0, 0, 20), 1.5);
+      camera.setExploded(true);
     }
   }
 
@@ -347,6 +346,11 @@ export class LogisticsStoryController {
     this.runtime.cameraDirector.moveTo(target.clone().add(offset), target, duration);
   }
 
+  moveLayerOverview(layerZ, duration) {
+    // 与三层炸开视角保持同一方向和俯角，仅把观察中心平移到当前层。
+    this.moveCamera(new THREE.Vector3(0, 0, layerZ), new THREE.Vector3(6, -138, 102), duration);
+  }
+
   follow(point, offset, amount = 0.032) {
     const desiredPosition = point.clone().add(offset);
     this.runtime.camera.position.lerp(desiredPosition, amount);
@@ -355,12 +359,20 @@ export class LogisticsStoryController {
 
   updateVisuals(stageId, progress, elapsed) {
     const digitalActive = ['digital_collect', 'digital_optimize', 'digital_contract', 'drill_operation', 'feedback'].includes(stageId);
-    setVisualOpacity(this.digitalNetwork, digitalActive ? (stageId === 'drill_operation' ? 0.42 : 1) : 0);
+    const upperFade = clamp01(1 - progress / 0.22);
+    const currentFade = clamp01((progress - 0.22) / 0.28);
+    if (stageId === 'drill_operation') {
+      Object.assign(this.weights, { infrastructure: 0, operation: currentFade, digital: upperFade });
+    } else if (stageId === 'drill_infrastructure') {
+      Object.assign(this.weights, { infrastructure: currentFade, operation: upperFade, digital: 0 });
+    }
+    setVisualOpacity(this.digitalNetwork, digitalActive ? (stageId === 'drill_operation' ? upperFade : 1) : 0);
     setVisualOpacity(this.candidateGroup, ['digital_optimize', 'digital_contract'].includes(stageId) ? 1 : 0);
     setVisualOpacity(this.contractGroup, stageId === 'digital_contract' ? 1 : 0);
-    setVisualOpacity(this.operationNetwork, ['drill_operation', 'operation', 'drill_infrastructure'].includes(stageId) ? (stageId === 'drill_operation' ? progress : 1) : 0);
+    const operationOpacity = stageId === 'drill_operation' ? currentFade : stageId === 'drill_infrastructure' ? upperFade : stageId === 'operation' ? 1 : 0;
+    setVisualOpacity(this.operationNetwork, operationOpacity);
     setVisualOpacity(this.operationFlow, stageId === 'operation' ? 1 : 0);
-    setVisualOpacity(this.infrastructureFlow, stageId === 'infrastructure' ? 1 : 0);
+    setVisualOpacity(this.infrastructureFlow, stageId === 'infrastructure' ? 1 : stageId === 'drill_infrastructure' ? currentFade * 0.42 : 0);
     setVisualOpacity(this.drillOne, stageId === 'drill_operation' ? Math.sin(progress * Math.PI) : 0);
     setVisualOpacity(this.drillTwo, stageId === 'drill_infrastructure' ? Math.sin(progress * Math.PI) : 0);
     setVisualOpacity(this.feedbackGroup, stageId === 'feedback' ? 1 : 0);

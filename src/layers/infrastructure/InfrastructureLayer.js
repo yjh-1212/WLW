@@ -82,6 +82,7 @@ export class InfrastructureLayer extends THREE.Group {
   }
 
   setVisualWeight(weight) {
+    this.visible = weight > 0.005;
     setGroupOpacity(this, weight);
   }
 

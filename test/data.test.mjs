@@ -125,6 +125,14 @@ test('业务演示控制器支持播放、跨幕、暂停与安全退出', () =>
   controller.elapsed = 9;
   controller.update(performance.now() + 16);
   assert.equal(controller.story.stages[controller.stageIndex].id, 'digital_optimize');
+  assert.equal(controller.weights.infrastructure, 0);
+  assert.equal(controller.weights.operation, 0);
+  assert.equal(controller.weights.digital, 1);
+  controller.elapsed = 22;
+  controller.update(performance.now() + 32);
+  assert.equal(controller.story.stages[controller.stageIndex].id, 'operation');
+  assert.equal(controller.weights.digital, 0);
+  assert.equal(controller.weights.operation, 1);
   controller.pause();
   assert.equal(controller.playing, false);
   controller.resume();

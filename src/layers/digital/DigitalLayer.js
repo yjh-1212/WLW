@@ -70,6 +70,9 @@ export class DigitalLayer extends THREE.Group {
     });
   }
 
-  setVisualWeight(weight) { setGroupOpacity(this, weight); }
+  setVisualWeight(weight) {
+    this.visible = weight > 0.005;
+    setGroupOpacity(this, weight);
+  }
   resize(width, height) { updateLineResolution(this, width, height); }
 }
