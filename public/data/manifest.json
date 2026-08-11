@@ -1,0 +1,18 @@
+{
+  "dataset": "national-logistics-network-demo",
+  "version": "1.0.0-demo",
+  "effectiveFrom": "2026-08-09",
+  "coordinateSystem": "reference-svg",
+  "scope": "中国省级轮廓及六轴七廊八通道概化线路",
+  "source": {
+    "provinceGeometry": "用户提供的《六轴七廊八通道_透明底版.html》",
+    "strategicBackbone": "用户提供的《六轴七廊八通道_透明底版.html》",
+    "entitiesAndRuntime": "项目示例数据"
+  },
+  "verifiedStatus": "demo-reference",
+  "licenseNote": "仅用于系统原型与交互验证。正式公开发布前应替换为经核验、符合审图要求的数据。",
+  "files": [
+    "china-provinces.svg",
+    "backbone-routes.json"
+  ]
+}
