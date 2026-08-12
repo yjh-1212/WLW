@@ -72,15 +72,18 @@ export function makeEntityNode(entity, projector, { color, z = 2, scale = 1, lay
   return root;
 }
 
-export function setGroupOpacity(root, opacity) {
+export function setGroupOpacity(root, opacity, { fade = false } = {}) {
   root.traverse((object) => {
     if (!object.material) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     materials.forEach((material) => {
       if (material.userData.baseOpacity === undefined) material.userData.baseOpacity = material.opacity ?? 1;
+      if (material.userData.baseDepthWrite === undefined) material.userData.baseDepthWrite = material.depthWrite;
       material.opacity = material.userData.baseOpacity * opacity;
       material.transparent = material.opacity < 0.99;
-      if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) material.depthWrite = material.opacity > 0.32;
+      if (fade) material.depthWrite = false;
+      else if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) material.depthWrite = material.opacity > 0.32;
+      else material.depthWrite = material.userData.baseDepthWrite;
     });
   });
 }

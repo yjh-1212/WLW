@@ -9,6 +9,7 @@ export class CameraDirector {
     // The small Y offset prevents OrbitControls from starting at its polar singularity.
     this.homePosition = new THREE.Vector3(0, -18, 118);
     this.homeTarget = new THREE.Vector3(0, 0, 1);
+    this.cancelMoveTweens = [];
   }
 
   reset(duration = 0.8) {
@@ -38,7 +39,15 @@ export class CameraDirector {
   }
 
   moveTo(position, target, duration = 0.8) {
-    this.animations.to(this.camera.position, { x: position.x, y: position.y, z: position.z }, duration);
-    this.animations.to(this.controls.target, { x: target.x, y: target.y, z: target.z }, duration);
+    this.cancelMove();
+    this.cancelMoveTweens = [
+      this.animations.to(this.camera.position, { x: position.x, y: position.y, z: position.z }, duration),
+      this.animations.to(this.controls.target, { x: target.x, y: target.y, z: target.z }, duration),
+    ];
+  }
+
+  cancelMove() {
+    this.cancelMoveTweens.forEach((cancel) => cancel?.());
+    this.cancelMoveTweens = [];
   }
 }

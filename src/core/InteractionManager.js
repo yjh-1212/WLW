@@ -5,6 +5,7 @@ export class InteractionManager {
     this.runtime = runtime;
     this.canvas = runtime.renderer.domElement;
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.params.Points.threshold = 0.85;
     this.pointer = new THREE.Vector2();
     this.pointerDown = null;
     this.hoveredEntity = null;
@@ -31,6 +32,11 @@ export class InteractionManager {
   pick() {
     const nodeHit = this.raycaster.intersectObjects(this.runtime.getInteractiveNodeMeshes(), false)[0];
     if (nodeHit) return { kind: 'entity', object: nodeHit.object, entityId: nodeHit.object.userData.entityId };
+    const facilityHit = this.raycaster.intersectObjects(this.runtime.getInteractiveFacilityObjects(), false)[0];
+    if (facilityHit) {
+      const feature = facilityHit.object.userData.features?.[facilityHit.index];
+      if (feature) return { kind: 'facility', object: facilityHit.object, feature };
+    }
     const routeHit = this.raycaster.intersectObjects(this.runtime.getInteractiveRouteObjects(), false)[0];
     if (routeHit) return { kind: 'route', object: routeHit.object, routeId: routeHit.object.userData.routeId };
     return null;
@@ -41,6 +47,7 @@ export class InteractionManager {
     const hit = this.pick();
     const entityId = hit?.kind === 'entity' ? hit.entityId : null;
     const routeId = hit?.kind === 'route' ? hit.routeId : null;
+    const facility = hit?.kind === 'facility' ? hit.feature : null;
     this.hoveredEntity = entityId;
     this.hoveredRoute = routeId;
     this.canvas.style.cursor = hit ? 'pointer' : 'grab';
@@ -50,6 +57,8 @@ export class InteractionManager {
     } else if (routeId) {
       const route = this.runtime.data.routes.find((item) => item.id === routeId);
       if (route) this.runtime.ui.showTooltip(event.clientX, event.clientY, route.name, `${route.id} · ${route.type.toUpperCase()}`);
+    } else if (facility) {
+      this.runtime.ui.showTooltip(event.clientX, event.clientY, facility.name, `${facility.category} · ${facility.province}`);
     } else {
       this.runtime.ui.hideTooltip();
     }
@@ -67,6 +76,7 @@ export class InteractionManager {
     this.updatePointer(event);
     const hit = this.pick();
     if (hit?.kind === 'entity') this.runtime.selectEntity(hit.entityId);
+    if (hit?.kind === 'facility') this.runtime.selectInfrastructureFeature(hit.feature);
     if (hit?.kind === 'route') this.runtime.focusRoute(hit.routeId);
   }
 

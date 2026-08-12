@@ -1,6 +1,6 @@
 export const demoEntities = [
   {
-    id: 'PORT_YINGKOU', name: '营口港', type: 'port', province: '辽宁', mapPoint: [1014.726, 475.5],
+    id: 'PORT_YINGKOU', name: '营口港', type: 'port', province: '辽宁', mapPoint: [1060.152, 462.295],
     longitude: 122.22, latitude: 40.65, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/PORT_YINGKOU', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '国家物流枢纽', lines: 6, capacity: '1.8 亿吨/年', status: '正常' },
@@ -8,7 +8,7 @@ export const demoEntities = [
     digital: { connectors: 18, resources: 42, apiHealth: 99.96, latestEvent: '到港确认' },
   },
   {
-    id: 'HUB_ZHENGZHOU', name: '郑州国家物流枢纽', type: 'hub', province: '河南', mapPoint: [875.612, 613.167],
+    id: 'HUB_ZHENGZHOU', name: '郑州国家物流枢纽', type: 'hub', province: '河南', mapPoint: [925.347, 616.152],
     longitude: 113.62, latitude: 34.75, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/HUB_ZHENGZHOU', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '陆港型枢纽', lines: 11, capacity: '540 万标箱/年', status: '正常' },
@@ -16,7 +16,7 @@ export const demoEntities = [
     digital: { connectors: 27, resources: 69, apiHealth: 99.91, latestEvent: '班列发运' },
   },
   {
-    id: 'PORT_SHANGHAI', name: '上海港', type: 'port', province: '上海', mapPoint: [1002.594, 695.3],
+    id: 'PORT_SHANGHAI', name: '上海港', type: 'port', province: '上海', mapPoint: [1084.549, 675.641],
     longitude: 121.47, latitude: 31.23, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/PORT_SHANGHAI', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '国际枢纽港', lines: 14, capacity: '5000 万标箱/年', status: '正常' },
@@ -24,7 +24,7 @@ export const demoEntities = [
     digital: { connectors: 41, resources: 128, apiHealth: 99.98, latestEvent: '装船完成' },
   },
   {
-    id: 'HUB_CHENGDU', name: '成都国际铁路港', type: 'rail-hub', province: '四川', mapPoint: [720.971, 708.367],
+    id: 'HUB_CHENGDU', name: '成都国际铁路港', type: 'rail-hub', province: '四川', mapPoint: [746.253, 716.613],
     longitude: 104.06, latitude: 30.67, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/HUB_CHENGDU', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '国家物流枢纽', lines: 9, capacity: '260 万标箱/年', status: '正常' },
@@ -32,7 +32,7 @@ export const demoEntities = [
     digital: { connectors: 23, resources: 58, apiHealth: 99.88, latestEvent: '换装完成' },
   },
   {
-    id: 'PORT_GUANGZHOU', name: '广州港南沙港区', type: 'port', province: '广东', mapPoint: [876.583, 896.667],
+    id: 'PORT_GUANGZHOU', name: '广州港南沙港区', type: 'port', province: '广东', mapPoint: [952.321, 894.132],
     longitude: 113.68, latitude: 22.60, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/PORT_GUANGZHOU', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '国际枢纽港', lines: 12, capacity: '2800 万标箱/年', status: '正常' },
@@ -40,7 +40,7 @@ export const demoEntities = [
     digital: { connectors: 36, resources: 96, apiHealth: 99.94, latestEvent: '预计到达更新' },
   },
   {
-    id: 'HUB_WUHAN', name: '武汉阳逻港', type: 'port', province: '湖北', mapPoint: [890.98, 708.6],
+    id: 'HUB_WUHAN', name: '武汉阳逻港', type: 'port', province: '湖北', mapPoint: [952.502, 707.133],
     longitude: 114.57, latitude: 30.66, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/HUB_WUHAN', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '港口型枢纽', lines: 8, capacity: '500 万标箱/年', status: '正常' },
@@ -48,7 +48,7 @@ export const demoEntities = [
     digital: { connectors: 16, resources: 37, apiHealth: 99.86, latestEvent: '多式联运交接' },
   },
   {
-    id: 'HUB_SONGYUAN', name: '松原粮食物流节点', type: 'grain-hub', province: '吉林', mapPoint: [1056.783, 370.733],
+    id: 'HUB_SONGYUAN', name: '松原粮食物流节点', type: 'grain-hub', province: '吉林', mapPoint: [1082.89, 353.167],
     longitude: 124.82, latitude: 45.14, coordinate_system: 'WGS84', source_type: 'demo',
     source_ref: 'demo://entity/HUB_SONGYUAN', verified_status: 'demo', effective_from: '2026-08-01',
     infrastructure: { level: '粮食物流节点', lines: 5, capacity: '860 万吨/年', status: '正常' },
@@ -79,8 +79,7 @@ export const layerCatalog = {
     { id: 'axes', label: '六条主轴', count: 6, enabled: true },
     { id: 'corridors', label: '七条走廊', count: 7, enabled: true },
     { id: 'channels', label: '八条通道', count: 8, enabled: true },
-    { id: 'hubs', label: '国家物流枢纽', count: 132, enabled: true },
-    { id: 'railway', label: '铁路骨架', count: 18, enabled: true },
+    { id: 'hubs', label: '演示业务节点', count: 7, enabled: true },
   ],
   operation: [
     { id: 'cargoFlow', label: '全国货物流向', count: 24, enabled: true },

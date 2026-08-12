@@ -53,11 +53,11 @@ export class AppShell {
           </nav>
           <div class="top-actions">
             <button class="story-launch" id="story-toggle" type="button" aria-label="播放一单贯穿三网演示">
-              <i aria-hidden="true">▶</i><span><b>业务演示</b><small>一单贯穿三网</small></span>
+              <i aria-hidden="true">▶</i><span><b>业务演示</b><small>北粮南运 · 公铁海</small></span>
             </button>
             <div class="search-box">
               <span aria-hidden="true">⌕</span>
-              <input id="global-search" type="search" autocomplete="off" placeholder="搜索枢纽、港口、通道或任务" aria-label="统一搜索" />
+              <input id="global-search" type="search" autocomplete="off" placeholder="搜索枢纽、园区、公路、铁路或通道" aria-label="统一搜索" />
               <kbd>⌘ K</kbd>
               <div id="search-results" class="search-results" role="listbox"></div>
             </div>
@@ -83,15 +83,16 @@ export class AppShell {
               <h3 id="story-title">一单贯穿三网</h3>
               <p id="story-subtitle">数字驱动运营，运营调度资源，设施承载物流</p>
               <div class="story-shipment" id="story-shipment"></div>
+              <div class="story-actors" id="story-actors" aria-label="当前参与主体"></div>
               <div class="story-metrics" id="story-metrics"></div>
               <div class="story-stage-track" id="story-stage-track"></div>
               <div class="story-progress"><i id="story-progress-bar"></i></div>
               <footer>
-                <span id="story-time">00:00 / 00:38</span>
-                <div><button id="story-control" type="button">Ⅱ 暂停</button><button id="story-exit" type="button">退出演示</button></div>
+                <span id="story-time">00:00 / 01:12</span>
+                <div><button id="story-follow" type="button">◎ 跟随中</button><button id="story-control" type="button">Ⅱ 暂停</button><button id="story-exit" type="button">退出演示</button></div>
               </footer>
             </section>
-            <div class="demo-badge"><span></span>演示数据 DEMO</div>
+            <div class="demo-badge"><span></span>演示业务 · 本地基础数据</div>
             <div class="north-indicator" aria-hidden="true"><i></i><b>N</b></div>
 
             <div class="stack-layer-labels" aria-label="三网快速切换">
@@ -189,18 +190,25 @@ export class AppShell {
   bindRuntime(runtime, data) {
     this.runtime = runtime;
     this.data = data;
-    this.root.querySelector('#object-count').textContent = data.entities.length.toLocaleString('zh-CN');
-    this.root.querySelector('#data-source').textContent = data.source === 'api' ? '实时接口' : data.source === 'demo-fallback' ? 'DEMO 回退' : 'DEMO';
+    const facilityCount = data.infrastructure?.facilities?.layers?.reduce((total, layer) => total + layer.count, 0) ?? 0;
+    this.root.querySelector('#object-count').textContent = (data.entities.length + facilityCount).toLocaleString('zh-CN');
+    this.root.querySelector('#data-source').textContent = data.source === 'api' ? '实时接口 + 本地基础层' : data.source === 'demo-fallback' ? 'DEMO 回退 + 本地基础层' : 'DEMO + 本地基础层';
   }
 
   bindStaticEvents() {
     this.root.addEventListener('click', (event) => {
       const modeButton = event.target.closest('[data-map-state]');
       if (modeButton && this.runtime) this.runtime.setState(modeButton.dataset.mapState);
+      const layerMasterButton = event.target.closest('[data-layer-toggle-all]');
+      if (layerMasterButton && this.runtime) this.toggleAllLayerElements(layerMasterButton.dataset.layerToggleAll);
       const legendButton = event.target.closest('[data-legend-filter]');
       if (legendButton && this.runtime) {
         legendButton.classList.toggle('is-on');
-        this.runtime.setLayerFilter('infrastructure', legendButton.dataset.legendFilter, legendButton.classList.contains('is-on'));
+        const enabled = legendButton.classList.contains('is-on');
+        this.runtime.setLayerFilter('infrastructure', legendButton.dataset.legendFilter, enabled);
+        const drawerInput = this.root.querySelector(`#layer-controls input[data-layer="infrastructure"][data-layer-filter="${legendButton.dataset.legendFilter}"]`);
+        if (drawerInput) drawerInput.checked = enabled;
+        this.updateLayerMasterControl('infrastructure');
       }
       const routeButton = event.target.closest('[data-route-id]');
       if (routeButton && this.runtime) this.runtime.focusRoute(routeButton.dataset.routeId);
@@ -208,9 +216,15 @@ export class AppShell {
       if (entityButton && this.runtime) this.runtime.selectEntity(entityButton.dataset.entityId);
       const taskButton = event.target.closest('[data-task-id]');
       if (taskButton && this.runtime) this.runtime.selectTask(taskButton.dataset.taskId);
+      const facilityButton = event.target.closest('[data-infrastructure-feature-id]');
+      if (facilityButton && this.runtime) {
+        const feature = this.findInfrastructureFeature(facilityButton.dataset.infrastructureFeatureId);
+        if (feature) this.runtime.selectInfrastructureFeature(feature);
+      }
       const layerJump = event.target.closest('[data-layer-jump]');
       if (layerJump && this.runtime) this.runtime.focusEntityLayer(layerJump.dataset.layerJump);
       if ((event.target.closest('#story-toggle') || event.target.closest('#story-control')) && this.runtime) this.runtime.toggleStory();
+      if (event.target.closest('#story-follow') && this.runtime) this.runtime.story?.toggleCameraFollow();
       if (event.target.closest('#story-exit') && this.runtime) this.runtime.stopStory();
       if (event.target.closest('#penetration-action') && this.runtime) this.runtime.activatePenetration();
       if (event.target.closest('#right-drawer-close')) this.closeRightDrawer();
@@ -220,7 +234,11 @@ export class AppShell {
     });
     this.root.addEventListener('change', (event) => {
       const input = event.target.closest('[data-layer-filter]');
-      if (input && this.runtime) this.runtime.setLayerFilter(input.dataset.layer, input.dataset.layerFilter, input.checked);
+      if (input && this.runtime) {
+        this.runtime.setLayerFilter(input.dataset.layer, input.dataset.layerFilter, input.checked);
+        this.syncLegendFilter(input.dataset.layerFilter, input.checked);
+        this.updateLayerMasterControl(input.dataset.layer);
+      }
     });
 
     const search = this.root.querySelector('#global-search');
@@ -264,7 +282,7 @@ export class AppShell {
 
   layerLead(layer) {
     return {
-      infrastructure: '查看战略骨架、通道线网与国家物流枢纽',
+      infrastructure: '查看战略骨架、主要交通线网、物流枢纽、冷链基地与规模园区',
       operation: '观察货物流向、运力状态、运输任务与风险异常',
       digital: '追踪连接器、数据调用、EPCIS 事件与 AI 协同',
     }[layer];
@@ -275,14 +293,45 @@ export class AppShell {
     this.root.querySelector('#layer-drawer-title').textContent = title;
     this.root.querySelector('#layer-drawer-en').textContent = en;
     this.root.querySelector('#layer-drawer-lead').textContent = this.layerLead(layer);
-    this.root.querySelector('#layer-controls').innerHTML = layerCatalog[layer].map((item) => `
-      <label class="layer-row">
-        <span><i class="layer-symbol ${layer}"></i><b>${escapeHtml(item.label)}</b><small>${item.count.toLocaleString('zh-CN')}</small></span>
-        <input type="checkbox" data-layer="${layer}" data-layer-filter="${item.id}" ${item.enabled ? 'checked' : ''}/><i class="toggle"></i>
-      </label>`).join('');
+    const infrastructure = this.data?.infrastructure;
+    const groups = layer === 'infrastructure' ? [
+      { title: '战略骨架', note: '概化线路', items: layerCatalog.infrastructure },
+      {
+        title: '主要交通线网', note: 'WGS84',
+        items: (infrastructure?.transport?.layers ?? []).map((item) => ({
+          ...item,
+          count: item.featureCount,
+          enabled: true,
+        })),
+      },
+      { title: '物流设施点', note: 'WGS84', items: infrastructure?.facilities?.layers ?? [] },
+    ] : [{ items: layerCatalog[layer] }];
+    const renderItem = (item) => {
+      const enabled = this.runtime?.layers[layer]?.filters?.[item.id] ?? item.enabled ?? true;
+      const transportClass = ['majorRoads', 'majorRailways'].includes(item.id) ? `transport ${item.id}` : '';
+      const facilityClass = ['nationalHubs', 'coldChainBases', 'logisticsParks'].includes(item.id) ? `facility ${item.id}` : '';
+      return `<label class="layer-row">
+        <span><i class="layer-symbol ${layer} ${transportClass} ${facilityClass}" ${item.color ? `style="--layer-color:${escapeHtml(item.color)}"` : ''}></i><b>${escapeHtml(item.label)}</b><small>${Number(item.count ?? 0).toLocaleString('zh-CN')}</small></span>
+        <input type="checkbox" data-layer="${layer}" data-layer-filter="${escapeHtml(item.id)}" ${enabled ? 'checked' : ''}/><i class="toggle"></i>
+      </label>`;
+    };
+    const allItems = groups.flatMap((group) => group.items);
+    const anyEnabled = allItems.some((item) => this.runtime?.layers[layer]?.filters?.[item.id] ?? item.enabled ?? true);
+    this.root.querySelector('#layer-controls').innerHTML = `
+      <div class="layer-master-control ${anyEnabled ? '' : 'is-all-off'}">
+        <span><b>图层元素</b><small>${anyEnabled ? '可单独控制，或一键全部关闭' : '当前层元素已全部关闭'}</small></span>
+        <button type="button" data-layer-toggle-all="${layer}" aria-label="${anyEnabled ? '关闭' : '开启'}${escapeHtml(title)}全部图层元素">
+          <i>${anyEnabled ? '⊘' : '◎'}</i><b>${anyEnabled ? '关闭全部' : '开启全部'}</b>
+        </button>
+      </div>
+      ${groups.map((group) => `
+      <section class="layer-control-group">
+        ${group.title ? `<header><b>${escapeHtml(group.title)}</b><small>${escapeHtml(group.note)}</small></header>` : ''}
+        ${group.items.map(renderItem).join('')}
+      </section>`).join('')}`;
     const routeBrowser = this.root.querySelector('#route-browser');
     if (layer !== 'infrastructure') {
-      routeBrowser.innerHTML = `<div class="drawer-callout"><span>LIVE SAMPLE</span><b>${layer === 'operation' ? '12 条货流正在动态演示' : '7 组可信调用关系已连接'}</b><p>当前为示例数据，接口模式下将按视窗、LOD 与权限动态加载。</p></div>`;
+      routeBrowser.innerHTML = `<div class="drawer-callout"><span>LIVE DATA</span><b>${layer === 'operation' ? '12 条货流正在动态演示' : '7 组可信调用关系已连接'}</b><p>当前为演示数据，接口模式下将按视窗、LOD 与权限动态加载。</p></div>`;
       return;
     }
     routeBrowser.innerHTML = ['axis', 'corridor', 'channel'].map((type) => {
@@ -291,10 +340,41 @@ export class AppShell {
     }).join('');
   }
 
+  toggleAllLayerElements(layer) {
+    const inputs = [...this.root.querySelectorAll(`#layer-controls input[data-layer="${layer}"][data-layer-filter]`)];
+    if (!inputs.length) return;
+    const enableAll = inputs.every((input) => !input.checked);
+    const filterIds = inputs.map((input) => input.dataset.layerFilter);
+    this.runtime?.setLayerFilters(layer, filterIds, enableAll);
+    inputs.forEach((input) => {
+      input.checked = enableAll;
+      this.syncLegendFilter(input.dataset.layerFilter, enableAll);
+    });
+    this.updateLayerMasterControl(layer);
+  }
+
+  updateLayerMasterControl(layer) {
+    const control = this.root.querySelector('.layer-master-control');
+    const button = control?.querySelector('[data-layer-toggle-all]');
+    if (!control || !button || button.dataset.layerToggleAll !== layer) return;
+    const inputs = [...this.root.querySelectorAll(`#layer-controls input[data-layer="${layer}"][data-layer-filter]`)];
+    const anyEnabled = inputs.some((input) => input.checked);
+    control.classList.toggle('is-all-off', !anyEnabled);
+    control.querySelector('small').textContent = anyEnabled ? '可单独控制，或一键全部关闭' : '当前层元素已全部关闭';
+    button.querySelector('i').textContent = anyEnabled ? '⊘' : '◎';
+    button.querySelector('b').textContent = anyEnabled ? '关闭全部' : '开启全部';
+    button.setAttribute('aria-label', `${anyEnabled ? '关闭' : '开启'}当前层全部图层元素`);
+  }
+
+  syncLegendFilter(filterId, enabled) {
+    const legend = this.root.querySelector(`[data-legend-filter="${filterId}"]`);
+    legend?.classList.toggle('is-on', enabled);
+  }
+
   openEntity(entity) {
     this.openRightDrawer(`
       <div class="detail-kicker">ENTITY / ${escapeHtml(entity.type).toUpperCase()}</div>
-      <div class="detail-title-row"><div><h3>${escapeHtml(entity.name)}</h3><p>${escapeHtml(entity.province)} · ${escapeHtml(entity.id)}</p></div><span class="verified-chip">示例</span></div>
+      <div class="detail-title-row"><div><h3>${escapeHtml(entity.name)}</h3><p>${escapeHtml(entity.province)} · ${escapeHtml(entity.id)}</p></div><span class="verified-chip">演示</span></div>
       <div class="coordinate-line"><span>坐标</span><b>${Number(entity.longitude).toFixed(2)}°E · ${Number(entity.latitude).toFixed(2)}°N</b></div>
       <div class="detail-metrics">
         <div><span>当前负荷</span><b>${entity.operation.load}<i>%</i></b></div>
@@ -330,10 +410,33 @@ export class AppShell {
     this.openRightDrawer(`
       <div class="detail-kicker">STRATEGIC BACKBONE / ${escapeHtml(route.id)}</div>
       <div class="detail-title-row"><div><h3>${escapeHtml(route.name)}</h3><p>国家综合立体交通网 · ${type}</p></div><span class="route-chip ${route.type}">${type}</span></div>
-      <div class="route-code-hero"><span>${escapeHtml(route.id)}</span><div><small>线路类型</small><b>${type}</b></div><div><small>核验状态</small><b>示例概化</b></div></div>
+      <div class="route-code-hero"><span>${escapeHtml(route.id)}</span><div><small>线路类型</small><b>${type}</b></div><div><small>核验状态</small><b>概化</b></div></div>
       <section class="entity-overview"><h4>线路说明</h4><p>依据上传参考图中的主要节点概化绘制，用于验证战略骨架的分层、筛选与交互，不作为测绘或正式业务数据。</p></section>
       <button class="secondary-action" data-map-state="EXPLODED">在三层空间中查看</button>
       <div class="source-note"><span>REAL DATA ENDPOINT</span><p>GET /api/map/corridors · 支持版本与来源字段</p></div>`);
+  }
+
+  findInfrastructureFeature(featureId) {
+    for (const layer of this.data?.infrastructure?.facilities?.layers ?? []) {
+      const feature = layer.points.find((item) => item.id === featureId);
+      if (feature) return feature;
+    }
+    return null;
+  }
+
+  openInfrastructureFeature(feature) {
+    const sourceLayer = this.data?.infrastructure?.facilities?.layers?.find((layer) => layer.points.some((item) => item.id === feature.id));
+    const [longitude, latitude] = feature.coordinates;
+    this.openRightDrawer(`
+      <div class="detail-kicker">INFRASTRUCTURE / ${escapeHtml(sourceLayer?.label ?? feature.category)}</div>
+      <div class="detail-title-row"><div><h3>${escapeHtml(feature.name)}</h3><p>${escapeHtml(feature.province)} · ${escapeHtml(feature.city)}</p></div><span class="verified-chip">本地数据</span></div>
+      <div class="coordinate-line"><span>WGS84 坐标</span><b>${Number(longitude).toFixed(6)}°E · ${Number(latitude).toFixed(6)}°N</b></div>
+      <div class="detail-metrics facility-metrics">
+        <div><span>设施类型</span><b>${escapeHtml(sourceLayer?.label ?? '物流设施')}</b></div>
+        <div><span>分类 / 批次</span><b>${escapeHtml(feature.category)}</b></div>
+      </div>
+      <section class="entity-overview"><h4>点位说明</h4><p>${escapeHtml(this.data?.infrastructure?.facilities?.meta?.note ?? '点位来自本地基础设施数据。')}</p></section>
+      <div class="source-note"><span>DATA PROVENANCE</span><p>${escapeHtml(sourceLayer?.source ?? 'data/ 本地 GeoJSON')} · ${escapeHtml(feature.id)}</p></div>`);
   }
 
   openTask(task) {
@@ -361,42 +464,76 @@ export class AppShell {
     this.root.querySelector('#map-stage').classList.add('story-active');
     this.root.querySelector('#story-shipment').innerHTML = `
       <span><small>运输需求</small><b>${escapeHtml(story.shipment.cargo)} ${Number(story.shipment.quantity).toLocaleString('zh-CN')} ${escapeHtml(story.shipment.unit)}</b></span>
-      <i>→</i><span><small>起讫区域</small><b>${escapeHtml(story.shipment.origin)} → ${escapeHtml(story.shipment.destination)}</b></span>`;
-    this.root.querySelector('#story-stage-track').innerHTML = story.stages.map((stage, index) => `
-      <i data-story-stage="${escapeHtml(stage.id)}" title="${escapeHtml(stage.title)}"><b>${String(index + 1).padStart(2, '0')}</b></i>`).join('');
+      <i>→</i><span><small>起讫区域</small><b>吉林 → 广东</b></span>
+      <span><small>发运要求</small><b>${escapeHtml(story.shipment.serviceLevel)}</b></span>`;
+    const chapters = story.chapters ?? story.stages.map((stage, index) => ({ id: stage.id, index: String(index + 1).padStart(2, '0'), title: stage.title, stageIds: [stage.id] }));
+    this.root.querySelector('#story-stage-track').innerHTML = chapters.map((chapter) => `
+      <i data-story-chapter="${escapeHtml(chapter.id)}" title="${escapeHtml(chapter.title)}"><b>${escapeHtml(chapter.index)}</b></i>`).join('');
+    this.setStoryCameraFollow(true);
     this.setStoryPlayback('playing');
   }
 
   updateStoryStage(stage, index, story) {
-    this.root.querySelector('#story-index').textContent = `${stage.index} / ${String(story.stages.length - 1).padStart(2, '0')} · STORY`;
+    const chapters = story.chapters ?? story.stages.map((item, itemIndex) => ({ id: item.id, index: String(itemIndex + 1).padStart(2, '0'), title: item.title, stageIds: [item.id] }));
+    const chapterIndex = Math.max(0, chapters.findIndex((chapter) => chapter.stageIds.includes(stage.id)));
+    const chapter = chapters[chapterIndex];
+    this.root.querySelector('#story-index').textContent = `${chapter.index} / ${String(chapters.length).padStart(2, '0')} · ${chapter.title}`;
     this.root.querySelector('#story-title').textContent = stage.title;
     this.root.querySelector('#story-subtitle').textContent = stage.subtitle;
-    this.root.querySelectorAll('[data-story-stage]').forEach((item, itemIndex) => {
-      item.classList.toggle('is-active', itemIndex === index);
-      item.classList.toggle('is-done', itemIndex < index);
+    this.root.querySelectorAll('[data-story-chapter]').forEach((item, itemIndex) => {
+      item.classList.toggle('is-active', itemIndex === chapterIndex);
+      item.classList.toggle('is-done', itemIndex < chapterIndex);
     });
-    const candidate = story.candidates.find((item) => item.selected);
+    const currentLayer = ['platform_space', 'transport_demand', 'capacity_response', 'route_solve', 'consensus'].includes(stage.id) ? 'digital'
+      : ['drill_operation', 'operation_dispatch'].includes(stage.id) ? 'operation'
+        : ['drill_infrastructure', 'origin_execute', 'coastal_execute', 'destination_execute'].includes(stage.id) ? 'infrastructure' : null;
+    this.root.querySelectorAll('.stack-layer-label').forEach((label) => {
+      label.classList.toggle('is-story-current', Boolean(currentLayer && label.classList.contains(currentLayer)));
+    });
+    this.root.querySelector('#story-actors').innerHTML = (stage.actors ?? []).map((actor, actorIndex) => `
+      ${actorIndex ? '<i aria-hidden="true">→</i>' : ''}<span>${escapeHtml(actor)}</span>`).join('');
     const metrics = {
-      overview: [['业务主题', story.shipment.name], ['时限要求', story.shipment.serviceLevel], ['演示时长', `${story.duration} 秒`]],
-      digital_collect: [['数据主体', `${story.subjects.length} 方`], ['可信模式', '可用不可见'], ['需求编号', story.shipment.id]],
-      digital_optimize: [['候选方案', `${story.candidates.length} 条`], ['资源匹配', `${candidate.score}%`], ['综合成本', `${candidate.costChange}%`]],
-      digital_contract: [['确认事项', `${story.agreements.length} 项`], ['可信审计', '全程存证'], ['合约状态', '待生效']],
-      drill_operation: [['任务载体', '数字运单'], ['下发对象', '运营协同网'], ['状态', '正在下钻']],
-      operation: [['协同主体', `${story.subjects.length} 方`], ['运输组织', candidate.name], ['货量', `${story.shipment.quantity} ${story.shipment.unit}`]],
-      drill_infrastructure: [['作业指令', '港口装船'], ['映射对象', '营口港'], ['状态', '设施确认']],
-      infrastructure: [['运输方式', story.execution.modes.join(' / ')], ['承运线路', '松原 → 营口 → 上海 → 南沙'], ['执行状态', '在途']],
-      feedback: [['回流事件', `${story.feedback.length} 类`], ['数据去向', '物流数据总线'], ['闭环状态', '持续优化']],
+      overview: [['运输货物', `${story.shipment.cargo} ${story.shipment.quantity} ${story.shipment.unit}`], ['运输方向', '吉林 → 广东'], ['发运要求', story.shipment.serviceLevel]],
+      platform_space: [['协同中枢', '物流可信数据空间'], ['始发协同', '吉林 / 辽宁'], ['收货协同', '广东']],
+      transport_demand: [['运输需求', `${story.shipment.cargo} ${story.shipment.quantity} ${story.shipment.unit}`], ['起讫区域', '吉林 → 广东'], ['发运要求', story.shipment.serviceLevel]],
+      capacity_response: [['资源反馈', `${story.capacityResponses.length} / ${story.capacityResponses.length} 方`], ['车皮泊位舱位', '已反馈'], ['协同中枢', '物流可信数据空间']],
+      route_solve: story.candidates.map((item) => [`${item.id} 方案`, `匹配 ${item.score}% · 成本 ${item.costChange}%`]),
+      consensus: [['确认主体', `${story.confirmations.length} 方`], ['确认状态', '依次达成'], ['数字合约', '待生效']],
+      drill_operation: [['数字合约', '已生效'], ['生成计划', '运单 / 港口 / 订舱'], ['下发状态', '进行中']],
+      operation_dispatch: [['作业计划', '多方已接收'], ['运输组织', '公铁海一单制'], ['任务编号', story.shipment.id]],
+      drill_infrastructure: [['资源锁定', `${story.execution.nodes.length} 个节点`], ['作业对象', '场站 / 泊位 / 车辆'], ['确认状态', '已完成']],
+      origin_execute: [['当前方式', '公路短驳 → 铁路'], ['实际线路', '吉林 → 营口港'], ['货物状态', '铁路集港']],
+      coastal_execute: [['当前方式', '沿海航运'], ['实际航段', '营口港 → 湛江港'], ['货物状态', '海上在途']],
+      destination_execute: [['当前方式', '铁路 → 公路短驳'], ['实际线路', '湛江 → 佛山工厂'], ['货物状态', '到厂签收']],
+      feedback: [['业务结果', '到厂签收'], ['合同状态', '履约完成'], ['数据归集', '物流可信数据空间']],
     }[stage.id] ?? [];
     this.root.querySelector('#story-metrics').innerHTML = metrics.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('');
   }
 
   updateStoryProgress(overallProgress, stageProgress, stage) {
     this.root.querySelector('#story-progress-bar').style.width = `${Math.min(100, overallProgress * 100).toFixed(2)}%`;
-    const elapsed = Math.round(overallProgress * (this.runtime?.story?.story?.duration ?? 38));
-    const duration = this.runtime?.story?.story?.duration ?? 38;
-    this.root.querySelector('#story-time').textContent = `00:${String(elapsed).padStart(2, '0')} / 00:${String(duration).padStart(2, '0')}`;
-    this.root.querySelector('#story-hud').style.setProperty('--stage-progress', stageProgress.toFixed(3));
-    if (stage.id === 'digital_contract' && stageProgress > 0.72) this.root.querySelector('#story-metrics span:last-child b').textContent = '已生效';
+    const elapsed = Math.round(overallProgress * (this.runtime?.story?.story?.duration ?? 62));
+    const duration = this.runtime?.story?.story?.duration ?? 62;
+    const formatTime = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    this.root.querySelector('#story-time').textContent = `${formatTime(elapsed)} / ${formatTime(duration)}`;
+    const story = this.runtime?.story?.story;
+    const elapsedSeconds = overallProgress * (story?.duration ?? 72);
+    const chapter = story?.chapters?.find((item) => item.stageIds.includes(stage.id));
+    const chapterStages = chapter?.stageIds.map((id) => story.stages.find((item) => item.id === id)).filter(Boolean) ?? [stage];
+    const chapterStart = chapterStages[0]?.start ?? stage.start;
+    const chapterEnd = chapterStages.at(-1)?.end ?? stage.end;
+    const chapterProgress = Math.min(1, Math.max(0, (elapsedSeconds - chapterStart) / Math.max(0.001, chapterEnd - chapterStart)));
+    this.root.querySelector('#story-hud').style.setProperty('--stage-progress', chapterProgress.toFixed(3));
+    if (stage.id === 'route_solve' && stageProgress > 0.58) {
+      this.root.querySelector('#story-title').textContent = 'A 方案优选 · 公铁海联运';
+      this.root.querySelector('#story-subtitle').textContent = '系统确认 A 方案：吉林铁路集港、营口装船、湛江卸船并转运佛山';
+      this.root.querySelector('#story-metrics').innerHTML = '<span><small>时效评估</small><b>时效最优</b></span><span><small>综合成本</small><b>↓12%</b></span><span><small>资源匹配</small><b>96%</b></span>';
+    }
+    if (stage.id === 'consensus' && stageProgress > 0.70) {
+      this.root.querySelector('#story-title').textContent = 'DIGITAL CONTRACT · 数字合约生效';
+      this.root.querySelector('#story-subtitle').textContent = '贸易商、车队、铁路、港口和船公司完成确认，联运运单正式生效';
+      this.root.querySelector('#story-metrics').innerHTML = '<span><small>数据授权</small><b>✓</b></span><span><small>五方确认</small><b>全部完成</b></span><span><small>合约状态</small><b>已生效</b></span>';
+    }
   }
 
   setStoryPlayback(state) {
@@ -411,20 +548,32 @@ export class AppShell {
     control.textContent = paused ? '▶ 继续' : 'Ⅱ 暂停';
   }
 
+  setStoryCameraFollow(enabled) {
+    const button = this.root.querySelector('#story-follow');
+    const hud = this.root.querySelector('#story-hud');
+    if (!button || !hud) return;
+    button.textContent = enabled ? '◎ 跟随中' : '⌖ 自由观察';
+    button.classList.toggle('is-active', enabled);
+    hud.classList.toggle('is-free-view', !enabled);
+  }
+
   completeStory(story) {
     const hud = this.root.querySelector('#story-hud');
     hud.classList.add('is-complete');
     hud.classList.remove('is-paused');
     this.root.querySelector('#story-index').textContent = 'COMPLETE / CLOSED LOOP';
-    this.root.querySelector('#story-title').textContent = '三网协同 · 一体化现代物流网';
-    this.root.querySelector('#story-subtitle').textContent = '数据流、业务流、货物流贯通，形成持续优化的运行闭环';
-    this.root.querySelector('#story-metrics').innerHTML = '<span><small>数字物流网</small><b>协同决策</b></span><span><small>物流运营网</small><b>组织资源</b></span><span><small>基础设施网</small><b>承载运输</b></span>';
+    this.root.querySelector('#story-title').textContent = '佛山工厂签收 · 本单履约完成';
+    this.root.querySelector('#story-subtitle').textContent = '物流可信数据空间完成运单、港口、船舶和签收状态归集';
+    this.root.querySelector('#story-actors').innerHTML = '<span>吉林粮源企业</span><i>→</i><span>营口港</span><i>→</i><span>湛江港</span><i>→</i><span>佛山粮油工厂</span>';
+    this.root.querySelector('#story-metrics').innerHTML = '<span><small>货物状态</small><b>到厂签收</b></span><span><small>联运方案</small><b>执行完成</b></span><span><small>合同状态</small><b>履约完成</b></span>';
     this.root.querySelector('#story-progress-bar').style.width = '100%';
-    this.root.querySelector('#story-time').textContent = `00:${story.duration} / 00:${story.duration}`;
+    const completeTime = `${String(Math.floor(story.duration / 60)).padStart(2, '0')}:${String(story.duration % 60).padStart(2, '0')}`;
+    this.root.querySelector('#story-time').textContent = `${completeTime} / ${completeTime}`;
     const launch = this.root.querySelector('#story-toggle');
     launch.querySelector('i').textContent = '↻';
     launch.querySelector('b').textContent = '重新演示';
     this.root.querySelector('#story-control').textContent = '↻ 重播';
+    this.setStoryCameraFollow(false);
     this.root.querySelector('#story-state').textContent = 'CLOSED LOOP';
   }
 
@@ -433,10 +582,22 @@ export class AppShell {
     hud.classList.remove('is-open', 'is-complete', 'is-paused');
     hud.setAttribute('aria-hidden', 'true');
     this.root.querySelector('#map-stage').classList.remove('story-active');
+    this.root.querySelectorAll('.stack-layer-label').forEach((label) => {
+      label.classList.remove('is-story-current');
+      label.style.removeProperty('top');
+    });
     const launch = this.root.querySelector('#story-toggle');
     launch.querySelector('i').textContent = '▶';
     launch.querySelector('b').textContent = '业务演示';
     this.root.querySelector('#story-state').textContent = 'AUTO PLAY';
+    this.setStoryCameraFollow(true);
+  }
+
+  updateStoryLayerLabelPositions(positions) {
+    Object.entries(positions ?? {}).forEach(([layer, top]) => {
+      const label = this.root.querySelector(`.stack-layer-label.${layer}`);
+      if (label && Number.isFinite(top)) label.style.top = `${top.toFixed(1)}px`;
+    });
   }
 
   renderSearch(value) {
@@ -450,8 +611,13 @@ export class AppShell {
     const entities = this.runtime.registry.search(term).slice(0, 4);
     const routes = this.data.routes.filter((route) => `${route.id}${route.name}`.toLowerCase().includes(term.toLowerCase())).slice(0, 4);
     const tasks = this.data.tasks.filter((task) => `${task.id}${task.name}`.toLowerCase().includes(term.toLowerCase())).slice(0, 2);
+    const facilities = (this.data.infrastructure?.facilities?.layers ?? [])
+      .flatMap((layer) => layer.points.map((feature) => ({ ...feature, layerLabel: layer.label })))
+      .filter((feature) => `${feature.name}${feature.province}${feature.city}${feature.category}`.toLowerCase().includes(term.toLowerCase()))
+      .slice(0, 5);
     const html = [
       ...entities.map((entity) => `<button data-entity-id="${entity.id}" role="option"><i class="result-icon">●</i><span><b>${escapeHtml(entity.name)}</b><small>${escapeHtml(entity.type)} · ${escapeHtml(entity.province)}</small></span><em>实体</em></button>`),
+      ...facilities.map((feature) => `<button data-infrastructure-feature-id="${escapeHtml(feature.id)}" role="option"><i class="result-icon facility">●</i><span><b>${escapeHtml(feature.name)}</b><small>${escapeHtml(feature.province)} · ${escapeHtml(feature.category)}</small></span><em>${escapeHtml(feature.layerLabel)}</em></button>`),
       ...routes.map((route) => `<button data-route-id="${route.id}" role="option"><i class="result-icon route">⌁</i><span><b>${escapeHtml(route.id)} · ${escapeHtml(route.name)}</b><small>国家战略骨架</small></span><em>${routeTypeLabels[route.type]}</em></button>`),
       ...tasks.map((task) => `<button data-task-id="${task.id}" role="option"><i class="result-icon task">↝</i><span><b>${escapeHtml(task.name)}</b><small>${escapeHtml(task.status)} · ${task.progress}%</small></span><em>任务</em></button>`),
     ].join('');

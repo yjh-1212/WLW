@@ -83,15 +83,18 @@ export class OperationLayer extends THREE.Group {
       particle.position.copy(flow.curve.getPointAt(t));
     }));
     if (this.alert?.visible) {
-      const pulse = 1 + Math.sin(elapsed * 2.2) * 0.16;
+      const pulse = this.fadeVisuals ? 1 : 1 + Math.sin(elapsed * 2.2) * 0.16;
       this.alert.scale.setScalar(pulse);
-      this.alert.material.opacity = 0.48 + Math.sin(elapsed * 2.2) * 0.16;
+      const alertOpacity = this.fadeVisuals ? 0.48 : 0.48 + Math.sin(elapsed * 2.2) * 0.16;
+      this.alert.material.opacity = alertOpacity * (this.visualWeight ?? 1);
     }
   }
 
-  setVisualWeight(weight) {
+  setVisualWeight(weight, options = {}) {
+    this.visualWeight = weight;
+    this.fadeVisuals = Boolean(options.fade);
     this.visible = weight > 0.005;
-    setGroupOpacity(this, weight);
+    setGroupOpacity(this, weight, options);
   }
   resize(width, height) { updateLineResolution(this, width, height); }
 }

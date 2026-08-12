@@ -64,15 +64,18 @@ export class DigitalLayer extends THREE.Group {
     });
     this.nodeObjects.forEach((node) => {
       const halo = node.userData.halo;
-      const pulse = 1 + Math.sin(elapsed * 1.8 + halo.userData.phase) * 0.18;
+      const pulse = this.fadeVisuals ? 1 : 1 + Math.sin(elapsed * 1.8 + halo.userData.phase) * 0.18;
       halo.scale.setScalar(pulse);
-      halo.material.opacity = 0.22 + Math.sin(elapsed * 1.8 + halo.userData.phase) * 0.08;
+      const haloOpacity = this.fadeVisuals ? 0.22 : 0.22 + Math.sin(elapsed * 1.8 + halo.userData.phase) * 0.08;
+      halo.material.opacity = haloOpacity * (this.visualWeight ?? 1);
     });
   }
 
-  setVisualWeight(weight) {
+  setVisualWeight(weight, options = {}) {
+    this.visualWeight = weight;
+    this.fadeVisuals = Boolean(options.fade);
     this.visible = weight > 0.005;
-    setGroupOpacity(this, weight);
+    setGroupOpacity(this, weight, options);
   }
   resize(width, height) { updateLineResolution(this, width, height); }
 }

@@ -54,14 +54,23 @@ export class LayerDataManager extends EventTarget {
       if (!response.ok) throw new Error('战略线路资源加载失败');
       return response.json();
     });
+    const infrastructurePromise = Promise.all([
+      fetch('/data/infrastructure/transport.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('交通线网资源加载失败'))),
+      fetch('/data/infrastructure/facilities.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('设施资源加载失败'))),
+      fetch('/data/infrastructure/north-grain-route.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('北粮南运路线资源加载失败'))),
+    ]).then(([transport, facilities, storyRoute]) => ({ transport, facilities, storyRoute })).catch((error) => {
+      console.warn('本地基础设施数据暂不可用。', error);
+      return { transport: { layers: [] }, facilities: { layers: [] }, storyRoute: { legs: [] } };
+    });
     if (this.mode !== 'api') {
-      const routes = await routesPromise;
-      return { routes: routes.routes, entities: demoEntities, tasks: demoTasks, source: 'demo' };
+      const [routes, infrastructure] = await Promise.all([routesPromise, infrastructurePromise]);
+      return { routes: routes.routes, entities: demoEntities, tasks: demoTasks, infrastructure, source: 'demo' };
     }
 
     try {
-      const [routesFallback, entitiesResult, corridorsResult] = await Promise.all([
+      const [routesFallback, infrastructure, entitiesResult, corridorsResult] = await Promise.all([
         routesPromise,
+        infrastructurePromise,
         this.api.get('/map/entities', { bbox: '73,18,135,54', types: 'hub,port,park', lod: 0 }),
         this.api.get('/map/corridors'),
       ]);
@@ -71,13 +80,13 @@ export class LayerDataManager extends EventTarget {
       const routes = routePayload.length ? routePayload.map(normalizeRoute).filter((route) => route.id && route.type) : routesFallback.routes;
       this.source = 'api';
       this.connectRealtime();
-      return { routes, entities, tasks: demoTasks, source: 'api' };
+      return { routes, entities, tasks: demoTasks, infrastructure, source: 'api' };
     } catch (error) {
-      console.warn('真实数据接口暂不可用，已回退示例数据。', error);
-      const routes = await routesPromise;
+      console.warn('真实数据接口暂不可用，已回退演示数据。', error);
+      const [routes, infrastructure] = await Promise.all([routesPromise, infrastructurePromise]);
       this.source = 'demo-fallback';
       this.dispatchEvent(new CustomEvent('degraded', { detail: { error } }));
-      return { routes: routes.routes, entities: demoEntities, tasks: demoTasks, source: 'demo-fallback' };
+      return { routes: routes.routes, entities: demoEntities, tasks: demoTasks, infrastructure, source: 'demo-fallback' };
     }
   }
 

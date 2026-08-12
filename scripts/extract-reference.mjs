@@ -33,7 +33,7 @@ const svg = [
 fs.writeFileSync(path.join(outputDir, 'china-provinces.svg'), svg, 'utf8');
 fs.writeFileSync(path.join(outputDir, 'backbone-routes.json'), JSON.stringify({
   meta: {
-    title: '六轴七廊八通道（示例概化线路）',
+    title: '六轴七廊八通道（概化线路）',
     source: '用户提供的《六轴七廊八通道_透明底版.html》',
     coordinateSystem: 'reference-svg',
     verifiedStatus: 'demo-reference',

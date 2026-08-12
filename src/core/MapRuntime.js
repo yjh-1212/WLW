@@ -92,7 +92,14 @@ export class MapRuntime {
     this.networkStackRoot = new THREE.Group();
     this.networkStackRoot.name = 'NetworkStackRoot';
     this.scene.add(this.networkStackRoot);
-    const layerArgs = { mapFactory: this.baseMap, projector: this.projector, routes: this.data.routes, entities: this.data.entities, registry: this.registry };
+    const layerArgs = {
+      mapFactory: this.baseMap,
+      projector: this.projector,
+      routes: this.data.routes,
+      entities: this.data.entities,
+      registry: this.registry,
+      infrastructureData: this.data.infrastructure,
+    };
     this.layers = {
       infrastructure: new InfrastructureLayer(layerArgs),
       operation: new OperationLayer(layerArgs),
@@ -295,9 +302,21 @@ export class MapRuntime {
     this.animations.to(this.networkStackRoot.rotation, { x: 0, y: 0, z: 0 }, duration);
     if (this.stackConnectorRoot) this.stackConnectorRoot.visible = state === MAP_STATES.EXPLODED;
     Object.entries(config).forEach(([key, target]) => this.animateLayer(this.layers[key], target, duration));
+    this.updateLayerSheetOpacity(state, config);
     this.baseMap.setSheetOpacity(this.baseSheet, baseOpacity);
     this.ui.updateMode(state, stateToLayer[state] ?? null, context);
     if (state !== MAP_STATES.PENETRATION) this.penetration?.clear();
+  }
+
+  updateLayerSheetOpacity(state, config) {
+    const solidSheets = state === MAP_STATES.EXPLODED || state === MAP_STATES.PENETRATION;
+    this.layers.infrastructure?.setStackOcclusion(solidSheets);
+    Object.entries(config).forEach(([key, target]) => {
+      const sheet = this.layers[key]?.sheet;
+      if (!sheet) return;
+      const sheetOpacity = solidSheets ? 1 : sheet.userData.baseOpacity * target.weight;
+      this.baseMap.setSheetOpacity(sheet, sheetOpacity);
+    });
   }
 
   focusLayerConfig(activeLayer) {
@@ -306,7 +325,9 @@ export class MapRuntime {
     return Object.fromEntries(order.map((layer, index) => {
       if (layer === activeLayer) return [layer, { x: 0, y: 0, z: 8, scale: 1.06, weight: 1 }];
       const direction = index < activeIndex ? -1 : 1;
-      return [layer, { x: 0, y: direction * (20 + Math.abs(index - activeIndex) * 6), z: -10, scale: 0.74, weight: 0.07 }];
+      // Focus mode is a strict single-layer view. Hiding the whole inactive
+      // layer also covers transport lines and facility points added later.
+      return [layer, { x: 0, y: direction * (20 + Math.abs(index - activeIndex) * 6), z: -10, scale: 0.74, weight: 0 }];
     }));
   }
 
@@ -378,6 +399,15 @@ export class MapRuntime {
     this.ui.openRoute(route);
   }
 
+  selectInfrastructureFeature(feature) {
+    if (!feature) return;
+    if (this.story?.active || this.story?.completed) this.story.stop({ restoreScene: true });
+    this.setState(MAP_STATES.FOCUS_INFRA, { featureId: feature.id });
+    const point = this.projector.fromLngLat(feature.coordinates);
+    this.cameraDirector.focusPoint(point, { distance: 62 });
+    this.ui.openInfrastructureFeature(feature);
+  }
+
   async selectTask(taskId) {
     if (this.story?.active || this.story?.completed) this.story.stop({ restoreScene: true });
     const task = await this.dataManager.loadTaskTrace(taskId);
@@ -390,6 +420,11 @@ export class MapRuntime {
   setLayerFilter(layer, id, enabled) {
     if (this.story?.active || this.story?.completed) this.story.stop({ restoreScene: true });
     this.layers[layer]?.setFilter(id, enabled);
+  }
+
+  setLayerFilters(layer, ids, enabled) {
+    if (this.story?.active || this.story?.completed) this.story.stop({ restoreScene: true });
+    ids.forEach((id) => this.layers[layer]?.setFilter(id, enabled));
   }
 
   getInteractiveNodeMeshes() {
@@ -416,6 +451,13 @@ export class MapRuntime {
       routes.push(object);
     });
     return routes;
+  }
+
+  getInteractiveFacilityObjects() {
+    const state = this.stateMachine.state;
+    if (stateToLayer[state] && stateToLayer[state] !== 'infrastructure') return [];
+    if (state === MAP_STATES.TASK_TRACE || !this.layers.infrastructure.visible) return [];
+    return [...this.layers.infrastructure.facilityObjects.values()].filter((object) => object.visible);
   }
 
   handleEscape() {
@@ -451,6 +493,8 @@ export class MapRuntime {
     this.animations.update();
     this.story?.update();
     this.controls.update();
+    this.story?.updateScreenLayerLabels();
+    this.story?.declutterLabels();
     this.layers?.operation.update(elapsed);
     this.layers?.digital.update(elapsed);
     if (this.starField) this.starField.rotation.z = elapsed * 0.0035;

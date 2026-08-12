@@ -6,6 +6,19 @@ export const REFERENCE_MAP = Object.freeze({
   scale: 0.076,
 });
 
+// The reference SVG uses a conic China projection rather than a rectangular
+// longitude/latitude stretch. This Lambert conformal calibration is fitted to
+// the SVG's explicit city anchors (Harbin, Urumqi, Xi'an, Wuhan, Kunming,
+// Nanning and Lhasa). Region labels such as "Jing-Jin-Ji" are intentionally not
+// used as city anchors because their symbols mark a regional center.
+const SVG_GEO_CALIBRATION = Object.freeze({
+  centralMeridian: 104.82,
+  standardParallel: 36.84,
+  scale: 1301.79671,
+  translateX: 761.189819,
+  translateY: -1161.397665,
+});
+
 export class GeoProjector {
   constructor(config = REFERENCE_MAP) {
     this.config = config;
@@ -22,9 +35,24 @@ export class GeoProjector {
 
   fromLngLat(coordinate, z = 0) {
     const [longitude, latitude] = coordinate;
-    const mapX = 218.546 + ((longitude - 73) / (135 - 73)) * (1221.454 - 218.546);
-    const mapY = 1004 - ((latitude - 18) / (54 - 18)) * (1004 - 164);
-    return this.fromMapPoint([mapX, mapY], z);
+    return this.fromMapPoint(this.referencePointFromLngLat([longitude, latitude]), z);
+  }
+
+  referencePointFromLngLat(coordinate) {
+    const [longitude, latitude] = coordinate.map(Number);
+    const calibration = SVG_GEO_CALIBRATION;
+    const radians = Math.PI / 180;
+    const standardParallel = calibration.standardParallel * radians;
+    const phi = latitude * radians;
+    const thetaOffset = (longitude - calibration.centralMeridian) * radians;
+    const n = Math.sin(standardParallel);
+    const f = Math.cos(standardParallel) * (Math.tan(Math.PI / 4 + standardParallel / 2) ** n) / n;
+    const rho = f / (Math.tan(Math.PI / 4 + phi / 2) ** n);
+    const theta = n * thetaOffset;
+    return [
+      calibration.translateX + calibration.scale * rho * Math.sin(theta),
+      calibration.translateY + calibration.scale * rho * Math.cos(theta),
+    ];
   }
 
   fromEntity(entity, z = 0) {
