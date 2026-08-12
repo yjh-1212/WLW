@@ -8,5 +8,6 @@ export default defineConfig({
   preview: {
     port: 4173,
     strictPort: true,
+    allowedHosts: ['wlw-3.onrender.com'],
   },
 });
