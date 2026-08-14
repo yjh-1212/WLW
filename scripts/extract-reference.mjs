@@ -36,7 +36,7 @@ fs.writeFileSync(path.join(outputDir, 'backbone-routes.json'), JSON.stringify({
     title: '六轴七廊八通道（概化线路）',
     source: '用户提供的《六轴七廊八通道_透明底版.html》',
     coordinateSystem: 'reference-svg',
-    verifiedStatus: 'demo-reference',
+    verifiedStatus: 'local-reference',
     generatedAt: new Date().toISOString(),
   },
   routes,

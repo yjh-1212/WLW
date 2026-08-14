@@ -1,23 +1,27 @@
 {
-  "dataset": "national-logistics-network-demo",
-  "version": "1.0.0-demo",
+  "dataset": "national-logistics-network-local",
+  "version": "1.0.0-local",
   "effectiveFrom": "2026-08-09",
   "coordinateSystem": "WGS84 + reference-svg",
-  "scope": "中国省级轮廓、六轴七廊八通道概化线路、主要公路、主要铁路与物流设施代表点",
+  "scope": "中国省级轮廓、全国省级区域的地市/区级边界、六轴七廊八通道概化线路、主要公路、主要铁路与物流设施代表点",
   "source": {
     "provinceGeometry": "用户提供的《六轴七廊八通道_透明底版.html》",
+    "cityBoundaries": "DataV.GeoAtlas（大陆及港澳地市/区级）与 g0v/twgeojson（台湾县市级，CC0-1.0）",
     "strategicBackbone": "用户提供的《六轴七廊八通道_透明底版.html》",
     "majorTransport": "data/主要公路.geojson 与 data/主要铁路.geojson",
     "logisticsFacilities": "data/ 目录中的国家物流枢纽、骨干冷链基地和规模物流园区 GeoJSON",
-    "entitiesAndRuntime": "项目演示数据"
+    "entitiesAndRuntime": "本地业务数据"
   },
-  "verifiedStatus": "demo-reference",
-  "licenseNote": "仅用于系统原型与交互验证。正式公开发布前应替换为经核验、符合审图要求的数据。",
+  "verifiedStatus": "local-reference",
+  "licenseNote": "数据有效期和来源见各资源清单；公开发布前需完成来源核验、版本确认和地图审图。",
   "files": [
     "china-provinces.svg",
+    "province-boundaries.json",
     "backbone-routes.json",
     "infrastructure/manifest.json",
     "infrastructure/transport.json",
-    "infrastructure/facilities.json"
+    "infrastructure/facilities.json",
+    "infrastructure/auto-parts-route.json",
+    "infrastructure/north-grain-route.json"
   ]
 }

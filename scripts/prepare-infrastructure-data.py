@@ -345,7 +345,7 @@ def prepare_story_route(transport: dict) -> dict:
         "meta": {
             "title": "北粮南运公铁海多式联运路线",
             "coordinateSystem": "WGS84",
-            "note": "公路和铁路路径沿用户提供的线网图搜索生成；海路按中国近海航向节点概化，仅用于业务演示。",
+            "note": "公路和铁路路径沿用户提供的线网图搜索生成；海路按中国近海航向节点概化，用于业务运行关系表达。",
         },
         "legs": output_legs,
     }

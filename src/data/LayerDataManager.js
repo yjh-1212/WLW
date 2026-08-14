@@ -1,6 +1,40 @@
 import { ApiClient } from './ApiClient.js';
-import { demoEntities, demoTasks } from './demoData.js';
-import { demoLogisticsStory } from './storyDemoData.js';
+import {
+  demoEntities,
+  demoTasks,
+  operationNetworkNodes,
+  operationNetworkRelations,
+  operationDashboard,
+  infrastructureDashboard,
+  attachInfrastructureFacilityStats,
+  digitalDashboard,
+  digitalNetworkNodes,
+  digitalNetworkRelations,
+} from './demoData.js';
+import { autoPartsStory } from './storyDemoData.js';
+import { northGrainStory } from './northGrainStoryData.js';
+
+export const STORY_IDS = Object.freeze({
+  AUTO_PARTS: autoPartsStory.id,
+  NORTH_GRAIN: northGrainStory.id,
+});
+
+const demoStories = new Map([
+  [autoPartsStory.id, autoPartsStory],
+  [northGrainStory.id, northGrainStory],
+]);
+
+const withBusinessNetworks = (infrastructureEntities, infrastructure) => ({
+  entities: [...infrastructureEntities, ...operationNetworkNodes, ...digitalNetworkNodes],
+  infrastructureEntities,
+  operationNodes: operationNetworkNodes,
+  operationRelations: operationNetworkRelations,
+  operationDashboard,
+  infrastructureDashboard: attachInfrastructureFacilityStats(infrastructureDashboard, infrastructure?.facilities),
+  digitalDashboard,
+  digitalNodes: digitalNetworkNodes,
+  digitalRelations: digitalNetworkRelations,
+});
 
 const asRecords = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -40,16 +74,20 @@ const normalizeRoute = (route) => ({
 export class LayerDataManager extends EventTarget {
   constructor() {
     super();
-    this.mode = import.meta.env.VITE_DATA_MODE ?? 'demo';
+    this.mode = import.meta.env.VITE_DATA_MODE ?? 'local';
     this.api = new ApiClient({
       baseUrl: import.meta.env.VITE_API_BASE_URL ?? '/api',
       timeout: Number(import.meta.env.VITE_REQUEST_TIMEOUT ?? 8000),
     });
-    this.source = 'demo';
+    this.source = 'local';
     this.ws = null;
   }
 
   async loadInitial() {
+    const provinceBoundariesPromise = fetch('/data/province-boundaries.json').then((response) => {
+      if (!response.ok) throw new Error('省市边界资源加载失败');
+      return response.json();
+    });
     const routesPromise = fetch('/data/backbone-routes.json').then((response) => {
       if (!response.ok) throw new Error('战略线路资源加载失败');
       return response.json();
@@ -57,20 +95,36 @@ export class LayerDataManager extends EventTarget {
     const infrastructurePromise = Promise.all([
       fetch('/data/infrastructure/transport.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('交通线网资源加载失败'))),
       fetch('/data/infrastructure/facilities.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('设施资源加载失败'))),
+      fetch('/data/infrastructure/auto-parts-route.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('汽车零部件运输路线资源加载失败'))),
       fetch('/data/infrastructure/north-grain-route.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('北粮南运路线资源加载失败'))),
-    ]).then(([transport, facilities, storyRoute]) => ({ transport, facilities, storyRoute })).catch((error) => {
+    ]).then(([transport, facilities, autoPartsRoute, northGrainRoute]) => ({
+      transport,
+      facilities,
+      storyRoutes: {
+        [autoPartsStory.id]: autoPartsRoute,
+        [northGrainStory.id]: northGrainRoute,
+      },
+    })).catch((error) => {
       console.warn('本地基础设施数据暂不可用。', error);
-      return { transport: { layers: [] }, facilities: { layers: [] }, storyRoute: { legs: [] } };
+      return { transport: { layers: [] }, facilities: { layers: [] }, storyRoutes: {} };
     });
     if (this.mode !== 'api') {
-      const [routes, infrastructure] = await Promise.all([routesPromise, infrastructurePromise]);
-      return { routes: routes.routes, entities: demoEntities, tasks: demoTasks, infrastructure, source: 'demo' };
+      const [routes, infrastructure, provinceBoundaries] = await Promise.all([routesPromise, infrastructurePromise, provinceBoundariesPromise]);
+      return {
+        routes: routes.routes,
+        ...withBusinessNetworks(demoEntities, infrastructure),
+        tasks: demoTasks,
+        infrastructure,
+        provinceBoundaries,
+        source: 'local',
+      };
     }
 
     try {
-      const [routesFallback, infrastructure, entitiesResult, corridorsResult] = await Promise.all([
+      const [routesFallback, infrastructure, provinceBoundaries, entitiesResult, corridorsResult] = await Promise.all([
         routesPromise,
         infrastructurePromise,
+        provinceBoundariesPromise,
         this.api.get('/map/entities', { bbox: '73,18,135,54', types: 'hub,port,park', lod: 0 }),
         this.api.get('/map/corridors'),
       ]);
@@ -80,13 +134,27 @@ export class LayerDataManager extends EventTarget {
       const routes = routePayload.length ? routePayload.map(normalizeRoute).filter((route) => route.id && route.type) : routesFallback.routes;
       this.source = 'api';
       this.connectRealtime();
-      return { routes, entities, tasks: demoTasks, infrastructure, source: 'api' };
+      return {
+        routes,
+        ...withBusinessNetworks(entities, infrastructure),
+        tasks: demoTasks,
+        infrastructure,
+        provinceBoundaries,
+        source: 'api',
+      };
     } catch (error) {
-      console.warn('真实数据接口暂不可用，已回退演示数据。', error);
-      const [routes, infrastructure] = await Promise.all([routesPromise, infrastructurePromise]);
-      this.source = 'demo-fallback';
+      console.warn('实时接口暂不可用，已切换至本地业务数据。', error);
+      const [routes, infrastructure, provinceBoundaries] = await Promise.all([routesPromise, infrastructurePromise, provinceBoundariesPromise]);
+      this.source = 'local-fallback';
       this.dispatchEvent(new CustomEvent('degraded', { detail: { error } }));
-      return { routes: routes.routes, entities: demoEntities, tasks: demoTasks, infrastructure, source: 'demo-fallback' };
+      return {
+        routes: routes.routes,
+        ...withBusinessNetworks(demoEntities, infrastructure),
+        tasks: demoTasks,
+        infrastructure,
+        provinceBoundaries,
+        source: 'local-fallback',
+      };
     }
   }
 
@@ -94,7 +162,7 @@ export class LayerDataManager extends EventTarget {
     if (this.mode === 'api') {
       try { return await this.api.get(`/entities/${encodeURIComponent(entityId)}/penetration`); } catch { /* demo fallback */ }
     }
-    return demoEntities.find((entity) => entity.id === entityId) ?? null;
+    return [...demoEntities, ...operationNetworkNodes, ...digitalNetworkNodes].find((entity) => entity.id === entityId) ?? null;
   }
 
   async loadTaskTrace(taskId) {
@@ -104,7 +172,7 @@ export class LayerDataManager extends EventTarget {
     return demoTasks.find((task) => task.id === taskId) ?? null;
   }
 
-  async loadStory(storyId = demoLogisticsStory.id) {
+  async loadStory(storyId = STORY_IDS.AUTO_PARTS) {
     if (this.mode === 'api') {
       try {
         const payload = await this.api.get(`/stories/${encodeURIComponent(storyId)}/timeline`);
@@ -112,7 +180,7 @@ export class LayerDataManager extends EventTarget {
         if (story?.stages?.length && story?.shipment) return story;
       } catch { /* demo fallback */ }
     }
-    return structuredClone(demoLogisticsStory);
+    return structuredClone(demoStories.get(storyId) ?? autoPartsStory);
   }
 
   connectRealtime() {
