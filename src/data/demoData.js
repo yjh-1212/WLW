@@ -236,12 +236,14 @@ export const operationDashboard = {
   topHubs: [
     { name: '上海', volume: '312.8 万吨', score: 98 }, { name: '郑州', volume: '186.3 万吨', score: 96 },
     { name: '广州', volume: '198.4 万吨', score: 94 }, { name: '武汉', volume: '168.4 万吨', score: 93 },
-    { name: '沈阳', volume: '245.6 万吨', score: 92 },
+    { name: '沈阳', volume: '245.6 万吨', score: 92 }, { name: '成都', volume: '160.7 万吨', score: 88 },
+    { name: '天津', volume: '142.5 万吨', score: 84 }, { name: '重庆', volume: '138.2 万吨', score: 81 },
   ],
   hotFlows: [
     { from: '黑龙江', to: '广东', volume: '125.3 万吨', score: 100 }, { from: '辽宁', to: '广东', volume: '98.7 万吨', score: 79 },
     { from: '内蒙古', to: '浙江', volume: '86.4 万吨', score: 69 }, { from: '山东', to: '江苏', volume: '72.1 万吨', score: 58 },
-    { from: '重庆', to: '上海', volume: '58.6 万吨', score: 47 },
+    { from: '重庆', to: '上海', volume: '58.6 万吨', score: 47 }, { from: '河南', to: '广东', volume: '52.4 万吨', score: 42 },
+    { from: '四川', to: '上海', volume: '46.8 万吨', score: 37 }, { from: '山西', to: '河北', volume: '41.2 万吨', score: 33 },
   ],
   activeHubs: [
     { name: '上海', grade: 'Ⅰ级', tasks: '1,245', load: '1.32' },
@@ -568,13 +570,13 @@ export const buildProvinceOperationDashboard = (summary = {}, data = {}) => {
   const shortage = Math.round(alerts * 0.22);
   const transfer = Math.max(1, alerts - delay - congestion - shortage);
   const cityNetwork = buildProvincialCityNetwork(province, summary, cargo);
-  const hotFlows = cityNetwork.flows.slice(0, 5).map((flow) => ({
+  const hotFlows = cityNetwork.flows.slice(0, 8).map((flow) => ({
     from: flow.from,
     to: flow.to,
     volume: `${flow.volumeValue.toFixed(1)} 万吨`,
     score: flow.score,
   }));
-  const topHubs = cityNetwork.cities.slice(0, 5).map((city, _, list) => ({
+  const topHubs = cityNetwork.cities.slice(0, 8).map((city, _, list) => ({
     name: city.name,
     volume: `${city.volumeValue.toFixed(1)} 万吨`,
     score: Math.round(100 * (city.taskValue / Math.max(1, list[0]?.taskValue ?? 1))),

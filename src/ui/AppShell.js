@@ -2,6 +2,10 @@ import { MAP_STATES } from '../core/MapStateMachine.js';
 import { layerCatalog, operationDashboard, infrastructureDashboard, digitalDashboard, explodedDashboard, buildProvinceOperationDashboard, buildProvinceInfrastructureDashboard, buildProvinceDigitalDashboard } from '../data/demoData.js';
 import { STORY_IDS } from '../data/LayerDataManager.js';
 import {
+  iconSvg,
+  metricIcon,
+  metricIconName,
+  panelIcon,
   renderLayerIcon,
   renderNodeIcon,
   EXPLODED_LAYER_ICONS,
@@ -51,6 +55,33 @@ const operationIcons = {
   alerts: svgIcon('<path d="M12 4.2 21 19.5H3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 9.5v5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.8" r=".9" fill="currentColor"/>'),
 };
 
+/** 设施类图层行的小图标：点要素靠图标区分类型，线要素继续用 CSS 线型符号。 */
+const FACILITY_TOGGLE_ICONS = {
+  nationalHubs: 'hub',
+  coldChainBases: 'coldChain',
+  logisticsParks: 'warehouse',
+  cityNodes: 'city',
+  railFreight: 'train',
+  roadFreight: 'truck',
+  airPortFacilities: 'plane',
+};
+
+/** 数字物流网要素行：全国与省级两套 id 都映射到同一套图标语义。 */
+const DIGITAL_ELEMENT_ICONS = {
+  connectors: 'users',
+  apiRelations: 'server',
+  epcis: 'database',
+  contracts: 'share',
+  corridors: 'route',
+  ai: 'aiChip',
+  cities: 'city',
+  parks: 'warehouse',
+  enterprises: 'users',
+  links: 'network',
+  crossProvince: 'route',
+  services: 'aiChip',
+};
+
 const INFRA_FILTER_IDS = ['axes', 'corridors', 'channels', 'hubs', 'majorRailways', 'majorRoads', 'nationalHubs', 'coldChainBases', 'logisticsParks'];
 const PROVINCE_INFRA_FILTER_IDS = ['provincialBackbone', 'outboundChannels', 'cityNodes', 'logisticsParks', 'coldChainBases', 'railFreight', 'roadFreight', 'airPortFacilities'];
 const DIGITAL_FILTER_IDS = ['connectors', 'apiRelations', 'epcis', 'contracts', 'corridors', 'ai'];
@@ -93,9 +124,9 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 
-const renderLayerRow = ({ layer, id, label, count, countLabel, symbolClass = '', enabled = true, color }) => `
+const renderLayerRow = ({ layer, id, label, count, countLabel, symbolClass = '', symbolIcon = '', enabled = true, color }) => `
   <div class="layer-row" role="switch" aria-checked="${enabled ? 'true' : 'false'}">
-    <span><i class="layer-symbol ${symbolClass}"${color ? ` style="--layer-color:${escapeHtml(color)}"` : ''}></i><b>${escapeHtml(label)}</b>${countLabel != null ? `<small>${escapeHtml(countLabel)}</small>` : (count != null ? `<small>${Number(count).toLocaleString('zh-CN')}</small>` : '')}</span>
+    <span><i class="layer-symbol ${symbolClass}"${color ? ` style="--layer-color:${escapeHtml(color)}"` : ''}>${symbolIcon ? iconSvg(symbolIcon) : ''}</i><b>${escapeHtml(label)}</b>${countLabel != null ? `<small>${escapeHtml(countLabel)}</small>` : (count != null ? `<small>${Number(count).toLocaleString('zh-CN')}</small>` : '')}</span>
     <input type="checkbox" data-layer="${layer}" data-layer-filter="${escapeHtml(id)}" ${enabled ? 'checked' : ''} tabindex="-1"/>
     <i class="toggle" aria-hidden="true"></i>
   </div>`;
@@ -115,26 +146,8 @@ const renderFacilityRankItem = (item, rank) => `<li class="${item.role ? 'has-ro
 
 const renderOperationModeSummary = (brief) => `
   <section class="operation-mode-summary" aria-live="polite">
-    <header><b>${escapeHtml(brief.title)}</b><i><em></em>总体畅通</i></header>
+    <header>${panelIcon(metricIconName(null, brief.title))}<b>${escapeHtml(brief.title)}</b><i><em></em>总体畅通</i></header>
     <div>${brief.stats.map(([label, value]) => `<i><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></i>`).join('')}</div>
-  </section>`;
-
-const renderOperationFocusTask = (task) => `
-  <section class="operation-panel-section operation-focus-task" data-operation-views="overview tasks multimodal">
-    <header><b>重点运输任务</b><small>执行中</small></header>
-    <h4>${escapeHtml(task.name)}</h4>
-    <p>${escapeHtml(task.route)}</p>
-    <div class="operation-focus-task-meta">
-      <i><small>运输货物</small><b>${escapeHtml(task.cargo)}</b></i>
-      <i><small>运输方式</small><b>${escapeHtml(task.mode)}</b></i>
-      <i><small>当前状态</small><b>${escapeHtml(task.status)}</b></i>
-      <i><small>预计到港</small><b>${escapeHtml(task.eta)}</b></i>
-    </div>
-    <div class="operation-focus-progress"><span><i style="width:${Number(task.progress)}%"></i></span><b>${Number(task.progress)}%</b></div>
-    <footer>
-      <button type="button" data-operation-task="${escapeHtml(task.id)}">查看任务</button>
-      <button type="button" data-operation-penetrate="${escapeHtml(task.id)}">运输穿透</button>
-    </footer>
   </section>`;
 
 const renderRankBar = (score) => `<span class="operation-rank-bar" style="--score:${Number(score)}%"><i></i></span>`;
@@ -177,10 +190,10 @@ const renderOperationWorkspaceInner = (dashboard = operationDashboard) => `
   ${renderOperationMapChrome()}
   ${renderOperationOverlays(dashboard)}
   <aside class="operation-insight-panel" aria-label="运营洞察">
-    <header class="operation-insight-head"><b>运营洞察</b></header>
+    <header class="operation-insight-head">${panelIcon('chartUp')}<b>运营洞察</b></header>
     <div id="operation-mode-summary">${renderOperationModeSummary(dashboard.modeBriefs.overview)}</div>
-    <section class="operation-panel-section operation-ranking" data-operation-views="overview cargo capacity">
-      <header><b>${escapeHtml(dashboard.rankingTitle ?? '全国物流运行 TOP')}</b><small>实时排行</small></header>
+    <section class="operation-panel-section operation-ranking" data-operation-views="overview cargo capacity tasks multimodal">
+      <header>${panelIcon('analytics')}<b>${escapeHtml(dashboard.rankingTitle ?? '全国物流运行 TOP')}</b><small>实时排行</small></header>
       <div class="operation-panel-tabs">
         <button type="button" class="is-active" data-operation-rank-tab="flows">热门流向</button>
         <button type="button" data-operation-rank-tab="hubs">活跃枢纽</button>
@@ -189,12 +202,11 @@ const renderOperationWorkspaceInner = (dashboard = operationDashboard) => `
       <ol data-operation-rank-panel="hubs" hidden>${dashboard.topHubs.map((hub, index) => `<li><em>${index + 1}</em><div><b>${escapeHtml(hub.name)}</b>${renderRankBar(hub.score)}</div><strong>${escapeHtml(hub.volume)}</strong></li>`).join('')}</ol>
     </section>
     <section class="operation-panel-section operation-alert-overview" data-operation-views="overview alerts">
-      <header><b>运行异常</b><button type="button" data-operation-mode="alerts">查看全部 →</button></header>
+      <header>${panelIcon('alert')}<b>运行异常</b><button type="button" data-operation-mode="alerts">查看全部 →</button></header>
       <div>${[1, 0, 2, 3].map((order) => dashboard.alertBreakdown[order]).map((item) => `<span><small>${escapeHtml(item.panelLabel)}</small><b>${Number(item.value)}</b></span>`).join('')}</div>
     </section>
-    ${dashboard.tasks?.[0] ? renderOperationFocusTask(dashboard.tasks[0]) : ''}
     <section class="operation-panel-section operation-alert-card" data-operation-views="alerts">
-      <header><b>异常链路</b><small>${escapeHtml(dashboard.activeAlert.level)}</small></header>
+      <header>${panelIcon('alert')}<b>异常链路</b><small>${escapeHtml(dashboard.activeAlert.level)}</small></header>
       <span>${escapeHtml(dashboard.activeAlert.type)}</span><b>${escapeHtml(dashboard.activeAlert.route)}</b>
       <p>${escapeHtml(dashboard.activeAlert.detail)}</p><em>${escapeHtml(dashboard.activeAlert.action)}</em>
     </section>
@@ -288,7 +300,7 @@ const renderExplodedWorkspace = (dashboard = explodedDashboard) => `
 
     <aside class="exploded-side" aria-label="三层协同机制">
       <section class="exploded-relations">
-        <header><b>三层协同机制</b></header>
+        <header>${panelIcon('network')}<b>三层协同机制</b></header>
         ${dashboard.relations.map((item) => {
           const icon = EXPLODED_RELATION_ICONS[item.id] ?? { tone: 'digital', icon: 'network' };
           return `
@@ -299,7 +311,7 @@ const renderExplodedWorkspace = (dashboard = explodedDashboard) => `
         }).join('')}
       </section>
       <section class="exploded-loop-panel">
-        <header><b>协同闭环</b></header>
+        <header>${panelIcon('target')}<b>协同闭环</b></header>
         ${renderExplodedLoop(dashboard.loop)}
       </section>
     </aside>
@@ -382,18 +394,18 @@ const renderProvinceInfrastructureWorkspaceInner = (dashboard) => `
   ${renderInfraMapChrome('provincial')}
   <aside class="operation-insight-panel infra-insight-panel" aria-label="省内设施分析">
     <div class="infra-rank-block">
-      <header class="operation-insight-head"><b>${escapeHtml(dashboard.rankingTitle ?? '设施分布 TOP 5')}</b><small>${escapeHtml(dashboard.rankingLabel ?? '本省节点')}</small></header>
+      <header class="operation-insight-head">${panelIcon('analytics')}<b>${escapeHtml(dashboard.rankingTitle ?? '设施分布 TOP 5')}</b><small>${escapeHtml(dashboard.rankingLabel ?? '本省节点')}</small></header>
       <div class="operation-panel-tabs infra-rank-tabs">
         ${dashboard.rankingTabs.map((tab, index) => `<button type="button" class="${index === 0 ? 'is-active' : ''}" data-infra-rank-tab="${tab.id}">${escapeHtml(tab.label)}</button>`).join('')}
       </div>
       ${dashboard.rankingTabs.map((tab, index) => `<ol class="infra-rank-list" data-infra-rank-panel="${tab.id}" ${index ? 'hidden' : ''}>${(dashboard.rankings[tab.id] ?? []).map(renderFacilityRankItem).join('')}</ol>`).join('')}
     </div>
     <section class="operation-panel-section">
-      <header><b>重点设施结构</b></header>
+      <header>${panelIcon('warehouse')}<b>重点设施结构</b></header>
       <div class="infra-structure-grid">${(dashboard.facilityStructure ?? []).map((item) => `<span><small>${escapeHtml(item.label)}</small><b>${Number(item.value).toLocaleString('zh-CN')}<em>个</em></b></span>`).join('')}</div>
     </section>
     <section class="operation-panel-section">
-      <header><b>对外通达方向</b></header>
+      <header>${panelIcon('route')}<b>对外通达方向</b></header>
       <div class="infra-outbound-meta">
         <span><small>对接省份</small><b>${Number(dashboard.outbound?.neighbors ?? 0)}</b></span>
         <span><small>主要出省通道</small><b>${Number(dashboard.outbound?.channels ?? 0)}</b></span>
@@ -401,13 +413,13 @@ const renderProvinceInfrastructureWorkspaceInner = (dashboard) => `
       <div class="infra-outbound">${(dashboard.outbound?.directions ?? []).map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('')}</div>
     </section>
     <section class="operation-panel-section infra-gauge-card">
-      <header><b>${escapeHtml(dashboard.connectivity.title ?? '设施连通性指数')}</b></header>
+      <header>${panelIcon('target')}<b>${escapeHtml(dashboard.connectivity.title ?? '设施连通性指数')}</b></header>
       <div class="infra-gauge"><b>${escapeHtml(dashboard.connectivity.value)}</b><small>${escapeHtml(dashboard.connectivity.label ?? '省内综合指数')}</small></div>
       <div class="infra-regions">${dashboard.connectivity.regions.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('')}</div>
     </section>
   </aside>
   <div class="network-stat-strip infra-stat-strip" aria-label="省级基础设施关键指标">
-    ${dashboard.stats.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('')}
+    ${dashboard.stats.map(([label, value]) => `<span>${metricIcon(null, label, { className: 'network-stat-icon' })}<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span></span>`).join('')}
     <span class="infra-stat-time"><small>数据更新时间</small><b class="network-update-time">--:--:--</b></span>
   </div>`;
 
@@ -419,24 +431,24 @@ const renderNationalInfrastructureWorkspaceInner = (dashboard = infrastructureDa
   ${renderInfraMapChrome('national')}
   <aside class="operation-insight-panel infra-insight-panel" aria-label="基础设施洞察">
     <div class="infra-rank-block">
-      <header class="operation-insight-head"><b>${escapeHtml(dashboard.rankingTitle ?? '设施分布 TOP 5')}</b><small>${escapeHtml(dashboard.rankingLabel ?? '设施点数')}</small></header>
+      <header class="operation-insight-head">${panelIcon('analytics')}<b>${escapeHtml(dashboard.rankingTitle ?? '设施分布 TOP 5')}</b><small>${escapeHtml(dashboard.rankingLabel ?? '设施点数')}</small></header>
       <div class="operation-panel-tabs infra-rank-tabs">
         ${dashboard.rankingTabs.map((tab, index) => `<button type="button" class="${index === 0 ? 'is-active' : ''}" data-infra-rank-tab="${tab.id}">${escapeHtml(tab.label)}</button>`).join('')}
       </div>
       ${dashboard.rankingTabs.map((tab, index) => `<ol class="infra-rank-list" data-infra-rank-panel="${tab.id}" ${index ? 'hidden' : ''}>${(dashboard.rankings[tab.id] ?? []).map(renderFacilityRankItem).join('')}</ol>`).join('')}
     </div>
     <section class="operation-panel-section">
-      <header><b>${escapeHtml(dashboard.projectsTitle ?? '重点基础设施建设')}</b></header>
+      <header>${panelIcon('bridge')}<b>${escapeHtml(dashboard.projectsTitle ?? '重点基础设施建设')}</b></header>
       ${dashboard.projects.map((item) => `<div class="infra-project"><b>${escapeHtml(item.name)}</b><span><i style="width:${item.progress}%"></i></span><em>${item.progress}% ${escapeHtml(item.status)}</em></div>`).join('')}
     </section>
     <section class="operation-panel-section infra-gauge-card">
-      <header><b>${escapeHtml(dashboard.connectivity.title ?? '设施连通性指数')}</b></header>
+      <header>${panelIcon('target')}<b>${escapeHtml(dashboard.connectivity.title ?? '设施连通性指数')}</b></header>
       <div class="infra-gauge"><b>${escapeHtml(dashboard.connectivity.value)}</b><small>${escapeHtml(dashboard.connectivity.label ?? '全国连通指数')}</small></div>
       <div class="infra-regions">${dashboard.connectivity.regions.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('')}</div>
     </section>
   </aside>
   <div class="network-stat-strip infra-stat-strip" aria-label="基础设施关键指标">
-    ${dashboard.stats.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('')}
+    ${dashboard.stats.map(([label, value]) => `<span>${metricIcon(null, label, { className: 'network-stat-icon' })}<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span></span>`).join('')}
     <span class="infra-stat-time"><small>数据更新时间</small><b class="network-update-time">--:--:--</b></span>
   </div>`;
 
@@ -493,25 +505,25 @@ const renderDigitalWorkspaceInner = (dashboard = digitalDashboard) => {
   ${renderDigitalMapChrome(provincial)}
   <aside class="operation-insight-panel digital-insight-panel" aria-label="数字网络洞察">
     <div>
-      <header class="operation-insight-head"><b>${provincial ? '热门省级物流数据服务' : '热门物流数据服务'}</b><small>TOP5</small></header>
+      <header class="operation-insight-head">${panelIcon('cloudDatabase')}<b>${provincial ? '热门省级物流数据服务' : '热门物流数据服务'}</b><small>TOP5</small></header>
       <ol class="infra-rank-list digital-rank-list">${dashboard.products.map((item, index) => `<li><em>${index + 1}</em><b>${escapeHtml(item.name)}</b><strong>${escapeHtml(item.callsWan ?? 0)}万次</strong></li>`).join('')}</ol>
     </div>
     <section class="operation-panel-section">
-      <header><b>数据共享与使用</b><small>实时统计</small></header>
+      <header>${panelIcon('share')}<b>数据共享与使用</b><small>实时统计</small></header>
       <div class="digital-auth-grid">${dashboard.sharingStats.map((item) => `<span><small>${escapeHtml(item.label)}</small><b>${escapeHtml(item.value)}${item.unit ? `<em>${escapeHtml(item.unit)}</em>` : ''}</b></span>`).join('')}</div>
       <div class="digital-sharing-summary">${dashboard.sharingSummary.map((item) => `<span><small>${escapeHtml(item.label)}</small><b>${escapeHtml(item.value)}</b></span>`).join('')}</div>
     </section>
     <section class="operation-panel-section digital-outcomes">
-      <header><b>本网服务成效</b><small>今日</small></header>
+      <header>${panelIcon('target')}<b>本网服务成效</b><small>今日</small></header>
       <div>${dashboard.serviceOutcomes.map((item) => `<span><small>${escapeHtml(item.label)}</small><b>${escapeHtml(item.value)}</b></span>`).join('')}</div>
     </section>
     <section class="operation-panel-section">
-      <header><b>${provincial ? '省级最新动态' : '网络最新动态'}</b><small>最新 ${dashboard.events.length} 条</small></header>
+      <header>${panelIcon('databaseSync')}<b>${provincial ? '省级最新动态' : '网络最新动态'}</b><small>最新 ${dashboard.events.length} 条</small></header>
       <div class="digital-event-stream">${dashboard.events.map((item) => `<p><time>${escapeHtml(item.time)}</time><b>${escapeHtml(item.type)}</b><span>${escapeHtml(item.detail)}</span></p>`).join('')}</div>
     </section>
   </aside>
   <section class="operation-ticker digital-ticker" aria-label="今日数字物流网络运行成效">
-    ${dashboard.ticker.map((item) => `<div class="${item.id === 'status' ? 'is-status' : ''}"><span><small>${escapeHtml(item.label)}</small><b>${escapeHtml(item.value)}</b>${item.delta ? `<em>${escapeHtml(item.delta)}</em>` : ''}</span></div>`).join('')}
+    ${dashboard.ticker.map((item) => `<div class="${item.id === 'status' ? 'is-status' : ''} ${item.id === 'alerts' ? 'is-alert' : ''}">${metricIcon(item.id, item.label)}<span><small>${escapeHtml(item.label)}</small><b>${escapeHtml(item.value)}</b>${item.delta ? `<em>${escapeHtml(item.delta)}</em>` : ''}</span></div>`).join('')}
   </section>`;
 };
 
@@ -572,10 +584,10 @@ export class AppShell {
           <div class="top-actions">
             <div class="story-launch-group" aria-label="业务流程">
               <button class="story-launch north-grain" type="button" data-story-id="${STORY_IDS.NORTH_GRAIN}" aria-label="启动北粮南运业务流程">
-                <i aria-hidden="true">▣</i><span><b>北粮南运</b><small>公铁海多式联运</small></span>
+                <i aria-hidden="true">${iconSvg('play')}</i><span><b>北粮南运</b><small>公铁海多式联运</small></span>
               </button>
               <button class="story-launch auto-parts" id="story-toggle" type="button" data-story-id="${STORY_IDS.AUTO_PARTS}" aria-label="启动汽车出海业务流程">
-                <i aria-hidden="true">▶</i><span><b>汽车出海</b><small>渝沪协同 · 整车出口</small></span>
+                <i aria-hidden="true">${iconSvg('play')}</i><span><b>汽车出海</b><small>渝沪协同 · 整车出口</small></span>
               </button>
             </div>
             <div class="search-box">
@@ -605,9 +617,9 @@ export class AppShell {
               <div class="platform-title"><i></i><div><h3 id="province-platform-name">省级物流运行平台</h3><p><span></span>省市协同在线</p></div></div>
               <div class="platform-metrics" id="province-platform-metrics"></div>
               <div class="platform-networks">
-                <div class="digital"><i>03</i><span><b>数字物流网</b><small>省市数据贯通 · 可信协同</small></span></div>
-                <div class="operation"><i>02</i><span><b>物流运营网</b><small>跨市组织调度 · 运行监测</small></span></div>
-                <div class="infrastructure"><i>01</i><span><b>基础设施网</b><small>通道枢纽园区 · 资源底座</small></span></div>
+                <div class="digital"><i>${iconSvg(STACK_LABEL_ICONS.digital.icon)}</i><span><b>数字物流网</b><small>省市数据贯通 · 可信协同</small></span></div>
+                <div class="operation"><i>${iconSvg(STACK_LABEL_ICONS.operation.icon)}</i><span><b>物流运营网</b><small>跨市组织调度 · 运行监测</small></span></div>
+                <div class="infrastructure"><i>${iconSvg(STACK_LABEL_ICONS.infrastructure.icon)}</i><span><b>基础设施网</b><small>通道枢纽园区 · 资源底座</small></span></div>
               </div>
               <div class="platform-city-strip"><span>覆盖区域</span><div id="province-city-strip"></div></div>
               <button class="platform-return" type="button" data-return-national><span>↺</span> 返回全国平台总览</button>
@@ -1037,13 +1049,15 @@ export class AppShell {
     const renderItem = (item) => {
       const enabled = this.runtime?.layers[layer]?.filters?.[item.id] ?? item.enabled ?? true;
       const transportClass = ['majorRoads', 'majorRailways'].includes(item.id) ? `transport ${item.id}` : '';
-      const facilityClass = ['nationalHubs', 'coldChainBases', 'logisticsParks'].includes(item.id) ? `facility ${item.id}` : '';
+      const facilityIcon = layer === 'infrastructure' ? FACILITY_TOGGLE_ICONS[item.id] : undefined;
+      const facilityClass = facilityIcon ? `facility ${item.id}` : '';
       return renderLayerRow({
         layer,
         id: item.id,
         label: item.label,
         count: item.count ?? 0,
         symbolClass: `${layer} ${transportClass} ${facilityClass}`,
+        symbolIcon: facilityIcon ?? '',
         enabled,
         color: item.color,
       });
@@ -1124,7 +1138,7 @@ export class AppShell {
     ];
     this.root.querySelector('#layer-controls').innerHTML = `
       <header class="operation-overview-head">
-        <b>${escapeHtml(scopeTitle)}</b>
+        ${panelIcon('truck')}<b>${escapeHtml(scopeTitle)}</b>
       </header>
       <nav class="operation-object-code" aria-label="运营对象快捷切换">
         <button type="button" data-operation-mode="cargo" title="货物流">货</button>
@@ -1207,12 +1221,14 @@ export class AppShell {
     const renderToggle = (item, layer = 'infrastructure') => {
       const enabled = this.runtime?.layers[layer]?.filters?.[item.id] ?? true;
       const transportClass = ['majorRoads', 'majorRailways', 'provincialBackbone', 'outboundChannels'].includes(item.id) ? `transport ${item.id}` : '';
-      const facilityClass = ['nationalHubs', 'coldChainBases', 'logisticsParks', 'cityNodes', 'railFreight', 'roadFreight', 'airPortFacilities'].includes(item.id) ? `facility ${item.id}` : '';
+      const isFacility = FACILITY_TOGGLE_ICONS[item.id] != null;
+      const facilityClass = isFacility ? `facility ${item.id}` : '';
       return renderLayerRow({
         layer,
         id: item.id,
         label: item.label,
         symbolClass: `infrastructure ${transportClass} ${facilityClass}`,
+        symbolIcon: isFacility ? FACILITY_TOGGLE_ICONS[item.id] : '',
         enabled,
       });
     };
@@ -1221,10 +1237,10 @@ export class AppShell {
     const pointToggles = provincial ? toggles.filter((item) => !['provincialBackbone', 'outboundChannels'].includes(item.id)) : toggles.filter((item) => ['nationalHubs', 'coldChainBases', 'logisticsParks'].includes(item.id));
     const anyEnabled = [...lineToggles, ...pointToggles].some((item) => this.runtime?.layers.infrastructure?.filters?.[item.id] ?? true);
     this.root.querySelector('#layer-controls').innerHTML = `
-      <header class="operation-overview-head"><b>${escapeHtml(provincial ? '省级基础设施总览' : '基础设施总览')}</b></header>
+      <header class="operation-overview-head">${panelIcon('warehouse')}<b>${escapeHtml(provincial ? '省级基础设施总览' : '基础设施总览')}</b></header>
       <div class="network-kpi-grid infra-kpi-grid">
         ${dashboard.overviewCards.map((card) => `<div class="network-kpi-card">
-          <i class="network-kpi-icon ${escapeHtml(card.id)}"></i>
+          ${metricIcon(card.id, card.label, { className: `network-kpi-icon ${escapeHtml(card.id)}` })}
           <span><small>${escapeHtml(card.label)}</small><b>${escapeHtml(card.value)}<em>${escapeHtml(card.unit)}</em></b></span>
         </div>`).join('')}
       </div>
@@ -1251,10 +1267,10 @@ export class AppShell {
     const elements = provincial ? (dashboard.elements ?? []) : layerCatalog.digital;
     const anyEnabled = elements.some((item) => this.runtime?.layers.digital?.filters?.[item.id] ?? item.enabled ?? true);
     this.root.querySelector('#layer-controls').innerHTML = `
-      <header class="operation-overview-head"><b>${provincial ? '省级网络概况' : '网络覆盖情况'}</b><small>${escapeHtml(provincial ? (dashboard.scope ?? '省内') : '全国')}</small></header>
+      <header class="operation-overview-head">${panelIcon('cloudDatabase')}<b>${provincial ? '省级网络概况' : '网络覆盖情况'}</b><small>${escapeHtml(provincial ? (dashboard.scope ?? '省内') : '全国')}</small></header>
       <div class="network-kpi-grid digital-kpi-grid${provincial ? ' is-provincial' : ''}">
         ${dashboard.overviewCards.map((card) => `<div class="network-kpi-card">
-          <i class="network-kpi-icon ${escapeHtml(card.id)}"></i>
+          ${metricIcon(card.id, card.label, { className: `network-kpi-icon ${escapeHtml(card.id)}` })}
           <span><small>${escapeHtml(card.label)}</small><b>${escapeHtml(card.value)}<em>${escapeHtml(card.unit)}</em></b></span>
         </div>`).join('')}
       </div>
@@ -1265,13 +1281,15 @@ export class AppShell {
         <header><b>${provincial ? '省内要素分布' : '网络要素分布'}</b>${renderLayerMasterControl('digital', anyEnabled)}</header>
         ${elements.map((item) => {
           const enabled = this.runtime?.layers.digital?.filters?.[item.id] ?? item.enabled ?? true;
+          const icon = DIGITAL_ELEMENT_ICONS[item.id];
           return renderLayerRow({
             layer: 'digital',
             id: item.id,
             label: item.label,
             count: item.count ?? 0,
             countLabel: item.countLabel,
-            symbolClass: 'digital',
+            symbolClass: `digital${icon ? ' element' : ''}`,
+            symbolIcon: icon ?? '',
             enabled,
           });
         }).join('')}
@@ -1848,7 +1866,7 @@ export class AppShell {
     hud.classList.toggle('is-paused', paused);
     const follow = this.runtime?.story?.cameraFollow !== false;
     this.root.querySelector('#story-state').textContent = paused ? 'PAUSED' : follow ? 'FOLLOW' : 'FREE VIEW';
-    launch.querySelector('i').textContent = paused ? '▶' : 'Ⅱ';
+    launch.querySelector('i').innerHTML = iconSvg(paused ? 'play' : 'pause');
     launch.querySelector('b').textContent = paused ? '继续播放' : '流程进行中';
     control.textContent = paused ? '▶ 继续' : 'Ⅱ 暂停';
   }
@@ -1884,7 +1902,7 @@ export class AppShell {
     const completeTime = `${String(Math.floor(story.duration / 60)).padStart(2, '0')}:${String(story.duration % 60).padStart(2, '0')}`;
     this.root.querySelector('#story-time').textContent = `${completeTime} / ${completeTime}`;
     const launch = this.root.querySelector(`[data-story-id="${story.id}"]`) ?? this.root.querySelector('#story-toggle');
-    launch.querySelector('i').textContent = '↻';
+    launch.querySelector('i').innerHTML = iconSvg('replay');
     launch.querySelector('b').textContent = '重新播放';
     this.root.querySelector('#story-control').textContent = '↻ 重播';
     this.setStoryCameraFollow(false);
@@ -1902,7 +1920,7 @@ export class AppShell {
     });
     this.root.querySelectorAll('[data-story-id]').forEach((launch) => {
       launch.classList.remove('is-active');
-      launch.querySelector('i').textContent = '▶';
+      launch.querySelector('i').innerHTML = iconSvg('play');
       launch.querySelector('b').textContent = launch.dataset.storyId === STORY_IDS.NORTH_GRAIN ? '北粮南运' : '汽车出海';
     });
     this.root.querySelector('#story-state').textContent = 'AUTO PLAY';
