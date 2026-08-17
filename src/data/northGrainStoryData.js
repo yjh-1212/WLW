@@ -1,8 +1,12 @@
+import { coastalSegment } from './chinaCoastalRoute.js';
+
+const candidateCSea = coastalSegment([121.62, 38.92], [114.35, 20.78]);
+
 export const northGrainStory = {
   id: 'GRAIN_NORTH_TO_SOUTH',
   // Storyline restored from the last pre-automotive-export presentation
   // (00861e1), with presentation-only metadata kept separate below.
-  version: '4.2.0',
+  version: '4.3.0',
   title: '北粮南运 · 公铁海多式联运',
   duration: 84,
   source_type: 'local',
@@ -28,7 +32,7 @@ export const northGrainStory = {
     originSubjectId: 'jilinCargoOwner',
     destinationSubjectId: 'consumerFactory',
     organizerSubjectId: 'grainTrader',
-    routeLabelCoordinate: [119.65, 23.55],
+    routeLabelCoordinate: [123.08, 30.35],
     actorChain: ['吉林粮源基地', '粮食贸易商', '营口港', '沿海散粮船', '湛江港', '佛山粮食加工企业'],
   },
   ui: {
@@ -73,7 +77,7 @@ export const northGrainStory = {
     { id: 'northRoad', name: '吉林短驳车队', role: '公路运输', task: '按贸易商计划组织短驳送站', coordinates: [125.286, 43.86], platformId: 'jilinPlatform', layers: ['digital', 'operation'] },
     { id: 'northRail', name: '东北铁路承运方', role: '铁路运输', task: '按贸易商计划安排班列与车皮', coordinates: [125.240517, 43.880982], platformId: 'liaoningPlatform', layers: ['digital', 'operation'] },
     { id: 'yingkouPort', name: '营口港', role: '起运港', task: '按贸易商计划安排装船泊位与堆场', coordinates: [122.22, 40.65], platformId: 'liaoningPlatform', layers: ['digital', 'operation'] },
-    { id: 'coastalCarrier', name: '沿海散粮船', role: '海运承运', task: '按贸易商计划确认船期与舱位', coordinates: [119.65, 23.55], platformId: 'trustedSpace', layers: ['digital', 'operation'] },
+    { id: 'coastalCarrier', name: '沿海散粮船', role: '海运承运', task: '按贸易商计划确认船期与舱位', coordinates: [123.12, 32.55], platformId: 'trustedSpace', layers: ['digital', 'operation'] },
     { id: 'zhanjiangPort', name: '湛江港', role: '到达港', task: '按贸易商计划组织卸船与疏运', coordinates: [110.41, 21.19], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
     { id: 'southRail', name: '广东铁路承运方', role: '到港铁路', task: '按贸易商计划安排到港铁路疏运', coordinates: [110.235968, 21.374145], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
     { id: 'southRoad', name: '珠三角短驳车队', role: '公路短驳', task: '按贸易商计划组织末端短驳到厂', coordinates: [112.851869, 23.155553], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
@@ -102,7 +106,7 @@ export const northGrainStory = {
   candidates: [
     { id: 'A', name: '吉林—营口—湛江—佛山公铁海联运', score: 96, costChange: -12, transitTime: '5 日内', selected: true, color: '#f4ff78' },
     { id: 'B', name: '东北铁路直达华南', score: 83, costChange: -6, transitTime: '4.5 日', selected: false, color: '#67b8ff', path: [[125.24, 43.88], [123.43, 41.80], [120.17, 40.26], [116.41, 39.90], [114.51, 38.04], [113.63, 34.75], [114.31, 30.59], [112.94, 28.23], [113.26, 23.13], [112.99, 23.07]] },
-    { id: 'C', name: '大连集港—沿海航运—珠三角短驳', score: 78, costChange: -3, transitTime: '5.5 日', selected: false, color: '#cf8dff', path: [[125.33, 43.84], [123.43, 41.80], [121.62, 38.92], [122.65, 36.60], [123.10, 33.10], [122.35, 29.55], [121.15, 26.20], [119.65, 23.55], [116.70, 21.70], [113.58, 22.25], [112.99, 23.07]] },
+    { id: 'C', name: '大连集港—沿海航运—珠三角短驳', score: 78, costChange: -3, transitTime: '5.5 日', selected: false, color: '#cf8dff', path: [[125.33, 43.84], [123.43, 41.80], ...candidateCSea, [113.72, 21.90], [113.26, 23.13], [112.99, 23.07]] },
   ],
   execution: {
     routeId: 'north-grain-route',

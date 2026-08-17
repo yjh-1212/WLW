@@ -1248,14 +1248,6 @@ export class AppShell {
         <header><b>${provincial ? '图层控制' : '基础设施图层'}</b>${renderLayerMasterControl('infrastructure', anyEnabled)}</header>
         <div class="layer-control-group"><header><b>${escapeHtml(dashboard.lineGroupTitle ?? '主要交通线网')}</b><small>${provincial ? '省内' : 'WGS84'}</small></header>${lineToggles.map((item) => renderToggle(item)).join('')}</div>
         <div class="layer-control-group"><header><b>${escapeHtml(dashboard.pointGroupTitle ?? '物流设施点')}</b><small>${provincial ? '分析' : 'WGS84'}</small></header>${pointToggles.map((item) => renderToggle(item)).join('')}</div>
-      </section>
-      <section class="network-legend-card">
-        <header><b>图层说明</b></header>
-        <div>
-          ${provincial ? `<span><i class="rail"></i>骨干</span><span><i class="road"></i>出省</span>
-          <span><i class="hub"></i>城市</span><span><i class="park"></i>园区</span>` : `<span><i class="rail"></i>铁路</span><span><i class="road"></i>公路</span>
-          <span><i class="hub"></i>枢纽</span><span><i class="park"></i>园区</span>`}
-        </div>
       </section>`;
     this.root.querySelector('#route-browser').innerHTML = '';
   }

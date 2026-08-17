@@ -16,9 +16,11 @@ import {
   attachInfrastructureFacilityStats,
   digitalDashboard,
   layerCatalog,
+  demoTasks,
 } from '../src/data/demoData.js';
 import { demoLogisticsStory } from '../src/data/storyDemoData.js';
 import { northGrainStory } from '../src/data/northGrainStoryData.js';
+import { YINGKOU_TO_ZHANJIANG_SEA } from '../src/data/chinaCoastalRoute.js';
 import { GeoProjector } from '../src/map/GeoProjector.js';
 import * as THREE from 'three';
 import { PenetrationController } from '../src/interaction/PenetrationController.js';
@@ -224,7 +226,7 @@ test('本地业务实体遵循统一实体字段约定', () => {
 
 test('运营网和数字网使用独立分级节点与语义关系', () => {
   assert.equal(operationNetworkNodes.length, 22);
-  assert.equal(operationNetworkRelations.length, 35);
+  assert.equal(operationNetworkRelations.length, 37);
   assert.equal(digitalNetworkNodes.length, 52);
   assert.equal(digitalNetworkRelations.length, 76);
 
@@ -1160,6 +1162,108 @@ test('北粮南运广东铁路段沿河茂广茂通道且不绕行广西湖南',
   assert.ok(southRail.path.every(([longitude, latitude]) => longitude >= 110.2 && latitude <= 23.3));
   assert.ok(southRail.path.some(([longitude, latitude]) => longitude > 110.75 && longitude < 111 && latitude < 21.8));
   assert.ok(southRail.path.some(([longitude, latitude]) => longitude > 112.4 && latitude > 23));
+});
+
+test('北粮南运海运航段沿近海外海且不横切山东半岛与粤西陆地', () => {
+  const sea = northGrainRoute.legs.find((leg) => leg.id === 'coastalShipping');
+  assert.ok(sea);
+  assert.equal(sea.mode, 'sea');
+  assert.deepEqual(sea.path, YINGKOU_TO_ZHANJIANG_SEA);
+  assert.deepEqual(sea.path[0], [122.22, 40.65]);
+  assert.deepEqual(sea.path.at(-1), [110.41, 21.19]);
+  assert.ok(sea.path.length >= 80);
+  assert.ok(sea.path.some(([longitude, latitude]) => longitude >= 123.3 && latitude > 37 && latitude < 38));
+  const sample = (a, b, n = 24) => Array.from({ length: n + 1 }, (_, index) => {
+    const t = index / n;
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  });
+  for (let index = 0; index < sea.path.length - 1; index += 1) {
+    for (const [longitude, latitude] of sample(sea.path[index], sea.path[index + 1])) {
+      assert.ok(!(longitude < 122.8 && longitude > 119.8 && latitude < 37.8 && latitude > 36.4), `海运切山东陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 121.0 && longitude > 119.0 && latitude < 34.4 && latitude > 31.6), `海运切苏北陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 121.3 && longitude > 119.6 && latitude < 30.0 && latitude > 27.6), `海运切浙东陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 119.4 && longitude > 117.6 && latitude < 26.8 && latitude > 24.0), `海运切福建陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 113.5 && longitude > 110.9 && latitude < 22.4 && latitude > 21.35), `海运切粤西陆地: ${longitude},${latitude}`);
+      // 南下航段不借道琼州海峡；雷州半岛及东海岛由下方实际边界校验覆盖。
+      const qiongzhouStrait = longitude > 109.75 && longitude < 110.35 && latitude < 20.45 && latitude > 19.98;
+      assert.ok(!qiongzhouStrait, `海运穿琼州海峡: ${longitude},${latitude}`);
+    }
+  }
+
+  // 使用页面实际渲染的省市边界逐点复核。港口端点允许极短的靠泊段，
+  // 其余海运路线不得进入沿海省份或岛屿的陆地多边形。
+  const coastalProvinceNames = ['辽宁', '河北', '天津', '山东', '江苏', '上海', '浙江', '福建', '广东', '广西', '海南', '台湾', '香港', '澳门'];
+  const landPolygons = coastalProvinceNames.flatMap((provinceName) => (
+    provinceBoundaries.provinces[provinceName]?.cities?.flatMap((city) => city.paths) ?? []
+  ));
+  const pointInPolygon = ([longitude, latitude], polygon) => {
+    let inside = false;
+    for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+      const [currentLongitude, currentLatitude] = polygon[current];
+      const [previousLongitude, previousLatitude] = polygon[previous];
+      const crossesLatitude = (currentLatitude > latitude) !== (previousLatitude > latitude);
+      const boundaryLongitude = ((previousLongitude - currentLongitude) * (latitude - currentLatitude))
+        / (previousLatitude - currentLatitude) + currentLongitude;
+      if (crossesLatitude && longitude < boundaryLongitude) inside = !inside;
+    }
+    return inside;
+  };
+  const distanceTo = (left, right) => Math.hypot(left[0] - right[0], left[1] - right[1]);
+  for (let index = 0; index < sea.path.length - 1; index += 1) {
+    const from = sea.path[index];
+    const to = sea.path[index + 1];
+    const steps = Math.max(1, Math.ceil(distanceTo(from, to) / 0.01));
+    for (let step = 0; step <= steps; step += 1) {
+      const progress = step / steps;
+      const coordinate = [
+        from[0] + (to[0] - from[0]) * progress,
+        from[1] + (to[1] - from[1]) * progress,
+      ];
+      if (!landPolygons.some((polygon) => pointInPolygon(coordinate, polygon))) continue;
+      const nearYingkouBerth = distanceTo(coordinate, sea.path[0]) <= 0.10;
+      const nearZhanjiangBerth = distanceTo(coordinate, sea.path.at(-1)) <= 0.055;
+      assert.ok(nearYingkouBerth || nearZhanjiangBerth, `海运进入地图陆地区域: ${coordinate.join(',')}`);
+    }
+  }
+});
+
+test('北粮南运数字网方案 C 海段沿近海走廊，不横切陆地', () => {
+  const candidateC = northGrainStory.candidates.find((item) => item.id === 'C');
+  assert.ok(candidateC);
+  const sample = (a, b, n = 24) => Array.from({ length: n + 1 }, (_, index) => {
+    const t = index / n;
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  });
+  for (let index = 0; index < candidateC.path.length - 1; index += 1) {
+    for (const [longitude, latitude] of sample(candidateC.path[index], candidateC.path[index + 1])) {
+      assert.ok(!(longitude < 122.8 && longitude > 119.8 && latitude < 37.8 && latitude > 36.4), `方案C切山东陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 121.0 && longitude > 119.0 && latitude < 34.4 && latitude > 31.6), `方案C切苏北陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 121.3 && longitude > 119.6 && latitude < 30.0 && latitude > 27.6), `方案C切浙东陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 119.4 && longitude > 117.6 && latitude < 26.8 && latitude > 24.0), `方案C切福建陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 113.5 && longitude > 110.9 && latitude < 22.4 && latitude > 21.35), `方案C切粤西陆地: ${longitude},${latitude}`);
+    }
+  }
+  assert.match(northGrainStorySource, /coastalSegment/);
+  // 数字网在途任务节点与公铁海联运口径一致：营口港下海、湛江港上岸
+  const grainTask = demoTasks.find((item) => item.id === 'TASK_HA_GZ_0826');
+  assert.ok(grainTask.nodes.includes('湛江港'));
+  assert.ok(!grainTask.nodes.includes('上海港'));
+});
+
+test('北粮南运运营网按公铁海分段：陆运走陆、海运走海', () => {
+  const task = operationDashboard.tasks.find((item) => item.id === 'OP_TASK_GRAIN_SOUTH');
+  assert.ok(task);
+  assert.deepEqual(task.relationIds, ['OPR_07', 'OPR_08', 'OPR_40', 'OPR_39']);
+  const sea = operationNetworkRelations.find((item) => item.id === 'OPR_40');
+  const southRail = operationNetworkRelations.find((item) => item.id === 'OPR_39');
+  assert.equal(sea.from, 'OP_YINGKOU_PORT');
+  assert.equal(sea.to, 'OP_ZHANJIANG_PORT');
+  assert.equal(sea.mode, 'water');
+  assert.equal(southRail.from, 'OP_ZHANJIANG_PORT');
+  assert.equal(southRail.to, 'OP_GBA_CENTER');
+  assert.equal(southRail.mode, 'rail');
+  assert.match(operationLayerSource, /coastalSegment/);
+  assert.match(operationLayerSource, /isCoastalEntity/);
 });
 
 test('汽车出海业务覆盖重庆组织、船期异常、渝沪协同与滚装离港', () => {

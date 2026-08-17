@@ -13,6 +13,7 @@ import {
 } from './demoData.js';
 import { autoPartsStory } from './storyDemoData.js';
 import { northGrainStory } from './northGrainStoryData.js';
+import { YINGKOU_TO_ZHANJIANG_SEA } from './chinaCoastalRoute.js';
 
 export const STORY_IDS = Object.freeze({
   AUTO_PARTS: autoPartsStory.id,
@@ -97,14 +98,18 @@ export class LayerDataManager extends EventTarget {
       fetch('/data/infrastructure/facilities.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('设施资源加载失败'))),
       fetch('/data/infrastructure/auto-parts-route.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('汽车零部件运输路线资源加载失败'))),
       fetch('/data/infrastructure/north-grain-route.json').then((response) => response.ok ? response.json() : Promise.reject(new Error('北粮南运路线资源加载失败'))),
-    ]).then(([transport, facilities, autoPartsRoute, northGrainRoute]) => ({
-      transport,
-      facilities,
-      storyRoutes: {
-        [autoPartsStory.id]: autoPartsRoute,
-        [northGrainStory.id]: northGrainRoute,
-      },
-    })).catch((error) => {
+    ]).then(([transport, facilities, autoPartsRoute, northGrainRoute]) => {
+      const seaLeg = northGrainRoute?.legs?.find((leg) => leg.id === 'coastalShipping');
+      if (seaLeg) seaLeg.path = YINGKOU_TO_ZHANJIANG_SEA;
+      return {
+        transport,
+        facilities,
+        storyRoutes: {
+          [autoPartsStory.id]: autoPartsRoute,
+          [northGrainStory.id]: northGrainRoute,
+        },
+      };
+    }).catch((error) => {
       console.warn('本地基础设施数据暂不可用。', error);
       return { transport: { layers: [] }, facilities: { layers: [] }, storyRoutes: {} };
     });

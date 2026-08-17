@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { MAP_THEME, toNumberColor } from '../../theme/mapTheme.js';
 import { makeEntityNode, makeWideLine, setGroupOpacity, updateLineResolution } from '../rendering.js';
+import { coastalSegment, isCoastalEntity } from '../../data/chinaCoastalRoute.js';
+
+const makeLngLatCurve = (points) => {
+  const curve = new THREE.CurvePath();
+  for (let index = 0; index < points.length - 1; index += 1) {
+    curve.add(new THREE.LineCurve3(points[index], points[index + 1]));
+  }
+  return curve;
+};
 
 const ROLE_STYLE = {
   coordinator: { color: '#73dfff', scale: 1.16 },
@@ -333,10 +342,26 @@ export class OperationLayer extends THREE.Group {
     };
     const start = this.projector.fromEntity(from, 2.36);
     const end = this.projector.fromEntity(to, 2.36);
-    const distance = start.distanceTo(end);
-    const middle = start.clone().lerp(end, 0.5).setZ(2.5 + Math.min(3.4, style.lift + distance * 0.025));
-    const curve = new THREE.QuadraticBezierCurve3(start, middle, end);
-    const points = curve.getPoints(Math.max(36, Math.round(distance * 2.6)));
+    const water = relation.mode === 'water' || relation.mode === 'sea';
+    const seaPath = Array.isArray(relation.path) && relation.path.length >= 2
+      ? relation.path
+      : (water && isCoastalEntity(from) && isCoastalEntity(to)
+        ? coastalSegment([Number(from.longitude), Number(from.latitude)], [Number(to.longitude), Number(to.latitude)])
+        : null);
+    let curve;
+    let points;
+    let distance;
+    if (seaPath?.length >= 2) {
+      const polyline = seaPath.map((coordinate) => this.projector.fromLngLat(coordinate, start.z));
+      curve = makeLngLatCurve(polyline);
+      distance = curve.getLength();
+      points = curve.getPoints(Math.max(64, Math.round(distance * 4)));
+    } else {
+      distance = start.distanceTo(end);
+      const middle = start.clone().lerp(end, 0.5).setZ(2.5 + Math.min(3.4, style.lift + distance * 0.025));
+      curve = new THREE.QuadraticBezierCurve3(start, middle, end);
+      points = curve.getPoints(Math.max(36, Math.round(distance * 2.6)));
+    }
     const glow = makeWideLine(points, {
       color: toNumberColor(style.color),
       width: style.width * 1.7,

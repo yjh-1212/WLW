@@ -120,9 +120,9 @@ const OPERATION_RELATION_PROFILES = {
   OPR_05: { mode: 'coordination', volume: 55, activity: 77 }, OPR_06: { mode: 'coordination', volume: 28, activity: 58 },
   OPR_07: { mode: 'road', volume: 33, activity: 88, taskId: 'OP_TASK_GRAIN_SOUTH' },
   OPR_08: { mode: 'rail', volume: 46, activity: 94, taskId: 'OP_TASK_GRAIN_SOUTH' },
-  OPR_09: { mode: 'water', volume: 58, activity: 91, taskId: 'OP_TASK_GRAIN_SOUTH', multimodal: true },
-  OPR_10: { mode: 'water', volume: 72, activity: 96, taskId: 'OP_TASK_GRAIN_SOUTH' },
-  OPR_11: { mode: 'water', volume: 86, activity: 98, taskId: 'OP_TASK_GRAIN_SOUTH' },
+  OPR_09: { mode: 'water', volume: 58, activity: 91 },
+  OPR_10: { mode: 'water', volume: 72, activity: 96 },
+  OPR_11: { mode: 'water', volume: 86, activity: 98 },
   OPR_12: { mode: 'rail', volume: 43, activity: 82 }, OPR_13: { mode: 'rail', volume: 39, activity: 79 },
   OPR_14: { mode: 'rail', volume: 48, activity: 87 }, OPR_15: { mode: 'road', volume: 24, activity: 90 },
   OPR_16: { mode: 'road', volume: 38, activity: 95, taskId: 'OP_TASK_AUTO_EXPORT' },
@@ -137,6 +137,8 @@ const OPERATION_RELATION_PROFILES = {
   OPR_30: { mode: 'rail', volume: 39, activity: 84 }, OPR_31: { mode: 'rail', volume: 57, activity: 92 },
   OPR_32: { mode: 'rail', volume: 68, activity: 95, multimodal: true }, OPR_33: { mode: 'water', volume: 63, activity: 93 },
   OPR_34: { mode: 'air', volume: 42, activity: 86 }, OPR_35: { mode: 'water', volume: 47, activity: 89 },
+  OPR_39: { mode: 'rail', volume: 54, activity: 91, taskId: 'OP_TASK_GRAIN_SOUTH' },
+  OPR_40: { mode: 'water', volume: 88, activity: 98, taskId: 'OP_TASK_GRAIN_SOUTH' },
 };
 
 export const operationNetworkRelations = [
@@ -175,6 +177,8 @@ export const operationNetworkRelations = [
   { id: 'OPR_33', from: 'OP_QINGDAO_PORT', to: 'OP_GBA_CENTER', type: 'handoff', lod: 0 },
   { id: 'OPR_34', from: 'OP_KUNMING_CENTER', to: 'OP_GBA_CENTER', type: 'handoff', lod: 0 },
   { id: 'OPR_35', from: 'OP_XIAMEN_PORT', to: 'OP_SHANGHAI_PORT', type: 'handoff', lod: 1 },
+  { id: 'OPR_39', from: 'OP_ZHANJIANG_PORT', to: 'OP_GBA_CENTER', type: 'handoff', lod: 1 },
+  { id: 'OPR_40', from: 'OP_YINGKOU_PORT', to: 'OP_ZHANJIANG_PORT', type: 'handoff', lod: 1 },
 ].map((relation) => ({ ...relation, ...OPERATION_RELATION_PROFILES[relation.id] }));
 
 export const operationDashboard = {
@@ -275,9 +279,9 @@ export const operationDashboard = {
   tasks: [
     {
       id: 'OP_TASK_GRAIN_SOUTH', code: 'HLJ-20260813-038', name: '北粮南运',
-      route: '哈尔滨 → 广州', status: '运输中', progress: 72, eta: '2025-05-18',
-      cargo: '粮食', mode: '铁路 + 水运', relationIds: ['OPR_07', 'OPR_08', 'OPR_09', 'OPR_10', 'OPR_11'],
-      nodes: ['东北区域运营中心', '吉林粮源组织节点', '营口港集疏运中心', '青岛港运营节点', '上海港运营节点', '粤港澳大湾区运营中心'],
+      route: '吉林 → 营口港 → 湛江港 → 佛山', status: '运输中', progress: 72, eta: '2025-05-18',
+      cargo: '粮食', mode: '公铁海联运', relationIds: ['OPR_07', 'OPR_08', 'OPR_40', 'OPR_39'],
+      nodes: ['东北区域运营中心', '吉林粮源组织节点', '营口港集疏运中心', '湛江港集疏运节点', '粤港澳大湾区运营中心'],
       metrics: [{ label: '货物', value: '粮食' }, { label: '进度', value: '72%' }, { label: '预计到达', value: '2025-05-18' }, { label: '准点率', value: '97.2%' }],
     },
     {
@@ -844,7 +848,7 @@ export const demoTasks = [
     status: '在途',
     progress: 64,
     eta: '18 小时 26 分',
-    nodes: ['松原粮食物流节点', '营口港', '上海港', '广州港南沙港区'],
+    nodes: ['松原粮食物流节点', '营口港', '湛江港', '佛山粮食加工企业'],
     events: [
       { time: '08:12', type: 'EPCIS', title: '营口港完成装载' },
       { time: '10:36', type: '运行', title: '海铁联运班次发出' },
