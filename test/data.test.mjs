@@ -20,7 +20,13 @@ import {
 } from '../src/data/demoData.js';
 import { demoLogisticsStory } from '../src/data/storyDemoData.js';
 import { northGrainStory } from '../src/data/northGrainStoryData.js';
-import { YINGKOU_TO_ZHANJIANG_SEA } from '../src/data/chinaCoastalRoute.js';
+import {
+  YINGKOU_SEA_BERTH,
+  YINGKOU_TO_ZHANJIANG_SEA,
+  ZHANJIANG_SEA_BERTH,
+  coastalSegment,
+  isCoastalEntity,
+} from '../src/data/chinaCoastalRoute.js';
 import { GeoProjector } from '../src/map/GeoProjector.js';
 import * as THREE from 'three';
 import { PenetrationController } from '../src/interaction/PenetrationController.js';
@@ -225,8 +231,8 @@ test('本地业务实体遵循统一实体字段约定', () => {
 });
 
 test('运营网和数字网使用独立分级节点与语义关系', () => {
-  assert.equal(operationNetworkNodes.length, 22);
-  assert.equal(operationNetworkRelations.length, 37);
+  assert.equal(operationNetworkNodes.length, 21);
+  assert.equal(operationNetworkRelations.length, 28);
   assert.equal(digitalNetworkNodes.length, 52);
   assert.equal(digitalNetworkRelations.length, 76);
 
@@ -1169,8 +1175,8 @@ test('北粮南运海运航段沿近海外海且不横切山东半岛与粤西�
   assert.ok(sea);
   assert.equal(sea.mode, 'sea');
   assert.deepEqual(sea.path, YINGKOU_TO_ZHANJIANG_SEA);
-  assert.deepEqual(sea.path[0], [122.22, 40.65]);
-  assert.deepEqual(sea.path.at(-1), [110.41, 21.19]);
+  assert.deepEqual(sea.path[0], YINGKOU_SEA_BERTH);
+  assert.deepEqual(sea.path.at(-1), ZHANJIANG_SEA_BERTH);
   assert.ok(sea.path.length >= 80);
   assert.ok(sea.path.some(([longitude, latitude]) => longitude >= 123.3 && latitude > 37 && latitude < 38));
   const sample = (a, b, n = 24) => Array.from({ length: n + 1 }, (_, index) => {
@@ -1182,7 +1188,11 @@ test('北粮南运海运航段沿近海外海且不横切山东半岛与粤西�
       assert.ok(!(longitude < 122.8 && longitude > 119.8 && latitude < 37.8 && latitude > 36.4), `海运切山东陆地: ${longitude},${latitude}`);
       assert.ok(!(longitude < 121.0 && longitude > 119.0 && latitude < 34.4 && latitude > 31.6), `海运切苏北陆地: ${longitude},${latitude}`);
       assert.ok(!(longitude < 121.3 && longitude > 119.6 && latitude < 30.0 && latitude > 27.6), `海运切浙东陆地: ${longitude},${latitude}`);
-      assert.ok(!(longitude < 119.4 && longitude > 117.6 && latitude < 26.8 && latitude > 24.0), `海运切福建陆地: ${longitude},${latitude}`);
+      // 福建岸线最东约 120.7°（宁德外海岛礁）；北段须离开近岸外海进入海峡中部
+      if (latitude > 25.2 && latitude < 27.0) {
+        assert.ok(longitude >= 121.0, `海运未离开福建近岸外海: ${longitude},${latitude}`);
+      }
+      assert.ok(!(longitude < 119.0 && longitude > 117.6 && latitude < 26.8 && latitude > 24.0), `海运切福建陆地: ${longitude},${latitude}`);
       assert.ok(!(longitude < 113.5 && longitude > 110.9 && latitude < 22.4 && latitude > 21.35), `海运切粤西陆地: ${longitude},${latitude}`);
       // 南下航段不借道琼州海峡；雷州半岛及东海岛由下方实际边界校验覆盖。
       const qiongzhouStrait = longitude > 109.75 && longitude < 110.35 && latitude < 20.45 && latitude > 19.98;
@@ -1190,8 +1200,8 @@ test('北粮南运海运航段沿近海外海且不横切山东半岛与粤西�
     }
   }
 
-  // 使用页面实际渲染的省市边界逐点复核。港口端点允许极短的靠泊段，
-  // 其余海运路线不得进入沿海省份或岛屿的陆地多边形。
+  // 使用页面实际渲染的省市边界逐点复核，包括营口与湛江港口端点。
+  // 海运全段不再允许任何“靠泊例外”，每一个采样点都必须位于水面。
   const coastalProvinceNames = ['辽宁', '河北', '天津', '山东', '江苏', '上海', '浙江', '福建', '广东', '广西', '海南', '台湾', '香港', '澳门'];
   const landPolygons = coastalProvinceNames.flatMap((provinceName) => (
     provinceBoundaries.provinces[provinceName]?.cities?.flatMap((city) => city.paths) ?? []
@@ -1219,10 +1229,10 @@ test('北粮南运海运航段沿近海外海且不横切山东半岛与粤西�
         from[0] + (to[0] - from[0]) * progress,
         from[1] + (to[1] - from[1]) * progress,
       ];
-      if (!landPolygons.some((polygon) => pointInPolygon(coordinate, polygon))) continue;
-      const nearYingkouBerth = distanceTo(coordinate, sea.path[0]) <= 0.10;
-      const nearZhanjiangBerth = distanceTo(coordinate, sea.path.at(-1)) <= 0.055;
-      assert.ok(nearYingkouBerth || nearZhanjiangBerth, `海运进入地图陆地区域: ${coordinate.join(',')}`);
+      assert.ok(
+        !landPolygons.some((polygon) => pointInPolygon(coordinate, polygon)),
+        `海运进入地图陆地区域: ${coordinate.join(',')}`,
+      );
     }
   }
 });
@@ -1239,7 +1249,7 @@ test('北粮南运数字网方案 C 海段沿近海走廊，不横切陆地', ()
       assert.ok(!(longitude < 122.8 && longitude > 119.8 && latitude < 37.8 && latitude > 36.4), `方案C切山东陆地: ${longitude},${latitude}`);
       assert.ok(!(longitude < 121.0 && longitude > 119.0 && latitude < 34.4 && latitude > 31.6), `方案C切苏北陆地: ${longitude},${latitude}`);
       assert.ok(!(longitude < 121.3 && longitude > 119.6 && latitude < 30.0 && latitude > 27.6), `方案C切浙东陆地: ${longitude},${latitude}`);
-      assert.ok(!(longitude < 119.4 && longitude > 117.6 && latitude < 26.8 && latitude > 24.0), `方案C切福建陆地: ${longitude},${latitude}`);
+      assert.ok(!(longitude < 119.15 && longitude > 117.6 && latitude < 26.8 && latitude > 24.0), `方案C切福建陆地: ${longitude},${latitude}`);
       assert.ok(!(longitude < 113.5 && longitude > 110.9 && latitude < 22.4 && latitude > 21.35), `方案C切粤西陆地: ${longitude},${latitude}`);
     }
   }
@@ -1250,20 +1260,58 @@ test('北粮南运数字网方案 C 海段沿近海走廊，不横切陆地', ()
   assert.ok(!grainTask.nodes.includes('上海港'));
 });
 
-test('北粮南运运营网按公铁海分段：陆运走陆、海运走海', () => {
-  const task = operationDashboard.tasks.find((item) => item.id === 'OP_TASK_GRAIN_SOUTH');
-  assert.ok(task);
-  assert.deepEqual(task.relationIds, ['OPR_07', 'OPR_08', 'OPR_40', 'OPR_39']);
-  const sea = operationNetworkRelations.find((item) => item.id === 'OPR_40');
-  const southRail = operationNetworkRelations.find((item) => item.id === 'OPR_39');
-  assert.equal(sea.from, 'OP_YINGKOU_PORT');
-  assert.equal(sea.to, 'OP_ZHANJIANG_PORT');
-  assert.equal(sea.mode, 'water');
-  assert.equal(southRail.from, 'OP_ZHANJIANG_PORT');
-  assert.equal(southRail.to, 'OP_GBA_CENTER');
-  assert.equal(southRail.mode, 'rail');
-  assert.match(operationLayerSource, /coastalSegment/);
-  assert.match(operationLayerSource, /isCoastalEntity/);
+test('运营网不再绘制北粮南运专线，业务流程与基础设施航线仍独立保留', () => {
+  assert.equal(operationDashboard.tasks.some((item) => item.id === 'OP_TASK_GRAIN_SOUTH'), false);
+  assert.equal(operationNetworkRelations.some((item) => item.id === 'OPR_40'), false);
+  assert.equal(operationNetworkRelations.some((item) => item.taskId === 'OP_TASK_GRAIN_SOUTH'), false);
+  // 任何两端都在沿海走廊上的水运关系都会被渲染成同一条“沿海南运”线，
+  // 首尾相接后在全国视图里看着就是一条贯通南北的海岸线，所以只允许保留短途摆渡段。
+  const nodeById = new Map(operationNetworkNodes.map((node) => [node.id, node]));
+  operationNetworkRelations.forEach((relation) => {
+    const from = nodeById.get(relation.from);
+    const to = nodeById.get(relation.to);
+    assert.ok(from && to, `关系 ${relation.id} 指向了不存在的节点`);
+    if (relation.mode !== 'water' && relation.mode !== 'sea') return;
+    if (!isCoastalEntity(from) || !isCoastalEntity(to)) return;
+    const latitudes = coastalSegment(
+      [Number(from.longitude), Number(from.latitude)],
+      [Number(to.longitude), Number(to.latitude)],
+    ).map((point) => point[1]);
+    const span = Math.max(...latitudes) - Math.min(...latitudes);
+    assert.ok(span < 3, `${relation.id}（${from.name}→${to.name}）跨 ${span.toFixed(2)} 个纬度，会画成沿海长线`);
+  });
+  // 节点也不能因为删线变成没有连线的孤点。
+  const linked = new Set(operationNetworkRelations.flatMap((relation) => [relation.from, relation.to]));
+  operationNetworkNodes.forEach((node) => {
+    assert.ok(linked.has(node.id), `节点 ${node.name} 没有任何关系连线`);
+  });
+  // 业务流程与基础设施仍使用独立的公铁海路线数据，不依赖运营网关系。
+  assert.equal(northGrainStory.id, 'GRAIN_NORTH_TO_SOUTH');
+  assert.ok(northGrainRoute.legs.some((leg) => leg.id === 'coastalShipping' && leg.mode === 'sea'));
+});
+
+test('省级基础设施面板排名块不被压塌，卡片之间不重叠', () => {
+  // 省级面板比全国多一块「对外通达方向」，排名块若继续参与 flex 收缩会被压成一条缝。
+  const rankBlockRule = stylesSource.match(/\.province-view\.focus-infrastructure:not\(\.story-active\) \.infra-rank-block\{[^}]*\}/)?.[0] ?? '';
+  assert.match(rankBlockRule, /min-height:\d{3}px/);
+  assert.match(stylesSource, /\.province-view\.focus-infrastructure:not\(\.story-active\) \.operation-insight-panel\{[^}]*overflow-y:auto/);
+  // 面板整体可滚动，排名条目不再被拉伸填充剩余高度。
+  const rankItemRule = stylesSource.match(/\.province-view\.focus-infrastructure:not\(\.story-active\) \.infra-insight-panel \.infra-rank-list li\{[^}]*\}/)?.[0] ?? '';
+  assert.match(rankItemRule, /flex:0 0 auto/);
+});
+
+test('省级地图屏幕标签按所在图层矩阵定位，不与线路脱层', () => {
+  // 出省通道箭头挂在 provinceRoot 上，聚焦态整层带 Z 位移与缩放。
+  const corridorGetter = digitalLayerSource.match(/getProvinceCorridorWorldPosition\(id\)\s*\{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(corridorGetter, /getWorldPosition/);
+  assert.match(corridorGetter, /localToWorld/);
+  assert.doesNotMatch(corridorGetter, /return item\?\.tip \? item\.tip\.clone\(\) : null/);
+  // 兜底经纬度同样要过图层矩阵，否则枢纽与通道标签都会整体偏移。
+  assert.match(runtimeSource, /layer\.updateWorldMatrix\(true, false\)/);
+  assert.match(runtimeSource, /const onLayer = \(coordinate, z\) => \(Array\.isArray\(coordinate\)\s*\n\s*\? layer\.localToWorld\(this\.projector\.fromLngLat\(coordinate, z\)\)/);
+  assert.match(runtimeSource, /\?\? onLayer\(hub\.center, 2\.55\)/);
+  assert.match(runtimeSource, /\?\? onLayer\(corridor\.center, 2\.62\)/);
+  assert.doesNotMatch(runtimeSource, /corridor\.center \? this\.projector\.fromLngLat/);
 });
 
 test('汽车出海业务覆盖重庆组织、船期异常、渝沪协同与滚装离港', () => {

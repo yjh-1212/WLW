@@ -1,4 +1,4 @@
-import { coastalSegment } from './chinaCoastalRoute.js';
+import { coastalSegment, YINGKOU_SEA_BERTH, ZHANJIANG_SEA_BERTH } from './chinaCoastalRoute.js';
 
 const candidateCSea = coastalSegment([121.62, 38.92], [114.35, 20.78]);
 
@@ -6,7 +6,7 @@ export const northGrainStory = {
   id: 'GRAIN_NORTH_TO_SOUTH',
   // Storyline restored from the last pre-automotive-export presentation
   // (00861e1), with presentation-only metadata kept separate below.
-  version: '4.3.0',
+  version: '4.3.1',
   title: '北粮南运 · 公铁海多式联运',
   duration: 84,
   source_type: 'local',
@@ -32,7 +32,7 @@ export const northGrainStory = {
     originSubjectId: 'jilinCargoOwner',
     destinationSubjectId: 'consumerFactory',
     organizerSubjectId: 'grainTrader',
-    routeLabelCoordinate: [123.08, 30.35],
+    routeLabelCoordinate: [121.20, 25.20],
     actorChain: ['吉林粮源基地', '粮食贸易商', '营口港', '沿海散粮船', '湛江港', '佛山粮食加工企业'],
   },
   ui: {
@@ -76,9 +76,9 @@ export const northGrainStory = {
     { id: 'liaoningGrain', name: '辽宁集港衔接方', role: '集港衔接', task: '按贸易商计划衔接铁路到港与装船', coordinates: [123.43, 41.80], platformId: 'liaoningPlatform', layers: ['digital', 'operation'] },
     { id: 'northRoad', name: '吉林短驳车队', role: '公路运输', task: '按贸易商计划组织短驳送站', coordinates: [125.286, 43.86], platformId: 'jilinPlatform', layers: ['digital', 'operation'] },
     { id: 'northRail', name: '东北铁路承运方', role: '铁路运输', task: '按贸易商计划安排班列与车皮', coordinates: [125.240517, 43.880982], platformId: 'liaoningPlatform', layers: ['digital', 'operation'] },
-    { id: 'yingkouPort', name: '营口港', role: '起运港', task: '按贸易商计划安排装船泊位与堆场', coordinates: [122.22, 40.65], platformId: 'liaoningPlatform', layers: ['digital', 'operation'] },
-    { id: 'coastalCarrier', name: '沿海散粮船', role: '海运承运', task: '按贸易商计划确认船期与舱位', coordinates: [123.12, 32.55], platformId: 'trustedSpace', layers: ['digital', 'operation'] },
-    { id: 'zhanjiangPort', name: '湛江港', role: '到达港', task: '按贸易商计划组织卸船与疏运', coordinates: [110.41, 21.19], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
+    { id: 'yingkouPort', name: '营口港', role: '起运港', task: '按贸易商计划安排装船泊位与堆场', coordinates: YINGKOU_SEA_BERTH, platformId: 'liaoningPlatform', layers: ['digital', 'operation'] },
+    { id: 'coastalCarrier', name: '沿海散粮船', role: '海运承运', task: '按贸易商计划确认船期与舱位', coordinates: [124.00, 32.55], platformId: 'trustedSpace', layers: ['digital', 'operation'] },
+    { id: 'zhanjiangPort', name: '湛江港', role: '到达港', task: '按贸易商计划组织卸船与疏运', coordinates: ZHANJIANG_SEA_BERTH, platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
     { id: 'southRail', name: '广东铁路承运方', role: '到港铁路', task: '按贸易商计划安排到港铁路疏运', coordinates: [110.235968, 21.374145], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
     { id: 'southRoad', name: '珠三角短驳车队', role: '公路短驳', task: '按贸易商计划组织末端短驳到厂', coordinates: [112.851869, 23.155553], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
     { id: 'consumerFactory', name: '佛山粮食加工企业', role: '收货方', task: '安排卸货、质检与签收', coordinates: [112.995806, 23.066961], platformId: 'guangdongPlatform', layers: ['digital', 'operation'] },
@@ -114,8 +114,8 @@ export const northGrainStory = {
     nodes: [
       { id: 'originBase', name: '吉林粮源基地', role: '粮源装车', coordinates: [125.328656, 43.839828] },
       { id: 'jilinRail', name: '吉林铁路货运站', role: '铁路集港', coordinates: [125.240517, 43.880982] },
-      { id: 'yingkouPort', name: '营口港', role: '装船离港', coordinates: [122.22, 40.65] },
-      { id: 'zhanjiangPort', name: '湛江港', role: '卸船到港', coordinates: [110.41, 21.19] },
+      { id: 'yingkouPort', name: '营口港', role: '装船离港', coordinates: YINGKOU_SEA_BERTH },
+      { id: 'zhanjiangPort', name: '湛江港', role: '卸船到港', coordinates: ZHANJIANG_SEA_BERTH },
       { id: 'zhanjiangRail', name: '湛江铁路货运站', role: '到港疏运', coordinates: [110.235968, 21.374145] },
       { id: 'foshanRail', name: '佛山铁路货运站', role: '铁路到达', coordinates: [112.851869, 23.155553] },
       { id: 'consumerFactory', name: '佛山粮食加工企业', role: '到货质检与签收', coordinates: [112.995806, 23.066961] },

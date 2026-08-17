@@ -670,6 +670,17 @@
 .province-view.focus-infrastructure:not(.story-active) .operation-insight-panel{
   overflow-x:hidden;overflow-y:auto
 }
+/* 省级面板比全国多一块「对外通达方向」，排名块若继续参与收缩会被压成一条缝，
+   自己的标题被 overflow:hidden 裁掉，看起来像和下面的卡片重叠。 */
+.province-view.focus-infrastructure:not(.story-active) .infra-rank-block{
+  flex:1 1 auto;min-height:232px
+}
+.province-view.focus-infrastructure:not(.story-active) .infra-insight-panel .infra-rank-list li{
+  flex:0 0 auto;min-height:42px
+}
+.province-view.focus-infrastructure:not(.story-active) .infra-insight-panel .infra-rank-list li.has-role{
+  min-height:52px
+}
 .focus-infrastructure:not(.story-active) .operation-subnav,
 .focus-digital:not(.story-active) .operation-subnav{top:16px;transform:translate(-50%,0)}
 

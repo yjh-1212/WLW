@@ -1674,6 +1674,12 @@ export class MapRuntime {
       return;
     }
     this.camera.updateMatrixWorld();
+    // 兜底坐标是图层局部值：聚焦态整层带 Z 位移与缩放，
+    // 必须过一遍图层矩阵，屏幕标签才会落在对应要素上。
+    layer.updateWorldMatrix(true, false);
+    const onLayer = (coordinate, z) => (Array.isArray(coordinate)
+      ? layer.localToWorld(this.projector.fromLngLat(coordinate, z))
+      : null);
     const project = (world) => {
       if (!world) return null;
       const clip = world.clone().project(this.camera);
@@ -1695,7 +1701,7 @@ export class MapRuntime {
           ?? layer.getEntityWorldPosition?.(hub.id)
           ?? layer.getFeatureWorldPosition?.(hub.id)
           ?? layer.getCityWorldPosition?.(hub.id)
-          ?? (hub.center ? this.projector.fromLngLat(hub.center, 2.55) : null),
+          ?? onLayer(hub.center, 2.55),
         );
         const belongsToTask = !taskNodes.size || taskNodes.has(hub.id);
         return {
@@ -1712,7 +1718,7 @@ export class MapRuntime {
         // 省级通道标签贴在出省箭头尖端，全国通道标签落在通道中心。
         const screen = project(
           layer.getProvinceCorridorWorldPosition?.(corridor.id)
-          ?? (corridor.center ? this.projector.fromLngLat(corridor.center, 2.62) : null),
+          ?? onLayer(corridor.center, 2.62),
         );
         const filterId = provincial ? 'crossProvince' : 'corridors';
         return {

@@ -92,8 +92,7 @@ const makeNetworkEntity = ({
 export const operationNetworkNodes = [
   makeNetworkEntity({ id: 'OP_NATIONAL_COORD', name: '全国物流运行协调中心', province: '北京', longitude: 116.40, latitude: 39.90, layer: 'operation', role: 'coordinator', lod: 0, operation: { throughput: '124.5 万吨', tasks: 18763, load: 93, activity: 97 } }),
   makeNetworkEntity({ id: 'OP_NORTHEAST_CENTER', name: '东北区域运营中心', province: '辽宁', longitude: 123.43, latitude: 41.80, layer: 'operation', role: 'coordinator', lod: 0, operation: { throughput: '245.6 万吨', tasks: 3256, load: 83, activity: 92 } }),
-  makeNetworkEntity({ id: 'OP_JILIN_GRAIN', name: '吉林粮源组织节点', province: '吉林', longitude: 124.82, latitude: 45.14, layer: 'operation', role: 'shipper', lod: 1, operation: { throughput: '32.8 万吨', tasks: 286, load: 76, activity: 88 } }),
-  makeNetworkEntity({ id: 'OP_YINGKOU_PORT', name: '营口港集疏运中心', province: '辽宁', longitude: 122.22, latitude: 40.65, layer: 'operation', role: 'operator', lod: 1, operation: { throughput: '38.6 万吨', tasks: 568, load: 81, activity: 91 } }),
+  makeNetworkEntity({ id: 'OP_YINGKOU_PORT', name: '营口港集疏运中心', province: '辽宁', longitude: 122.14, latitude: 40.65, layer: 'operation', role: 'operator', lod: 1, operation: { throughput: '38.6 万吨', tasks: 568, load: 81, activity: 91 } }),
   makeNetworkEntity({ id: 'OP_BOHAI_SHIPPING', name: '渤海轮渡承运节点', province: '辽宁', longitude: 121.62, latitude: 38.92, layer: 'operation', role: 'carrier', lod: 2 }),
   makeNetworkEntity({ id: 'OP_TIANJIN_HUB', name: '京津冀多式联运中心', province: '天津', longitude: 117.20, latitude: 39.13, layer: 'operation', role: 'operator', lod: 1 }),
   makeNetworkEntity({ id: 'OP_ZHENGZHOU_CENTER', name: '中原区域运营中心', province: '河南', longitude: 113.62, latitude: 34.75, layer: 'operation', role: 'coordinator', lod: 0, operation: { throughput: '186.3 万吨', tasks: 2189, load: 84, activity: 94 } }),
@@ -109,7 +108,7 @@ export const operationNetworkNodes = [
   makeNetworkEntity({ id: 'OP_XIAMEN_PORT', name: '厦门港运营节点', province: '福建', longitude: 118.08, latitude: 24.48, layer: 'operation', role: 'operator', lod: 1 }),
   makeNetworkEntity({ id: 'OP_GBA_CENTER', name: '粤港澳大湾区运营中心', province: '广东', longitude: 113.26, latitude: 23.13, layer: 'operation', role: 'coordinator', lod: 0, operation: { throughput: '198.4 万吨', tasks: 2451, load: 86, activity: 96 } }),
   makeNetworkEntity({ id: 'OP_FOSHAN_FACTORY', name: '佛山制造货主节点', province: '广东', longitude: 112.99, latitude: 23.07, layer: 'operation', role: 'shipper', lod: 2 }),
-  makeNetworkEntity({ id: 'OP_ZHANJIANG_PORT', name: '湛江港集疏运节点', province: '广东', longitude: 110.41, latitude: 21.19, layer: 'operation', role: 'operator', lod: 1 }),
+  makeNetworkEntity({ id: 'OP_ZHANJIANG_PORT', name: '湛江港集疏运节点', province: '广东', longitude: 110.46, latitude: 21.10, layer: 'operation', role: 'operator', lod: 1 }),
   makeNetworkEntity({ id: 'OP_NANNING_CENTER', name: '北部湾区域运营中心', province: '广西', longitude: 108.32, latitude: 22.82, layer: 'operation', role: 'coordinator', lod: 1 }),
   makeNetworkEntity({ id: 'OP_KUNMING_CENTER', name: '面向南亚运营中心', province: '云南', longitude: 102.71, latitude: 25.04, layer: 'operation', role: 'coordinator', lod: 0 }),
 ];
@@ -118,11 +117,6 @@ const OPERATION_RELATION_PROFILES = {
   OPR_01: { mode: 'coordination', volume: 32, activity: 62 }, OPR_02: { mode: 'coordination', volume: 44, activity: 71 },
   OPR_03: { mode: 'coordination', volume: 51, activity: 75 }, OPR_04: { mode: 'coordination', volume: 38, activity: 68 },
   OPR_05: { mode: 'coordination', volume: 55, activity: 77 }, OPR_06: { mode: 'coordination', volume: 28, activity: 58 },
-  OPR_07: { mode: 'road', volume: 33, activity: 88, taskId: 'OP_TASK_GRAIN_SOUTH' },
-  OPR_08: { mode: 'rail', volume: 46, activity: 94, taskId: 'OP_TASK_GRAIN_SOUTH' },
-  OPR_09: { mode: 'water', volume: 58, activity: 91 },
-  OPR_10: { mode: 'water', volume: 72, activity: 96 },
-  OPR_11: { mode: 'water', volume: 86, activity: 98 },
   OPR_12: { mode: 'rail', volume: 43, activity: 82 }, OPR_13: { mode: 'rail', volume: 39, activity: 79 },
   OPR_14: { mode: 'rail', volume: 48, activity: 87 }, OPR_15: { mode: 'road', volume: 24, activity: 90 },
   OPR_16: { mode: 'road', volume: 38, activity: 95, taskId: 'OP_TASK_AUTO_EXPORT' },
@@ -133,12 +127,11 @@ const OPERATION_RELATION_PROFILES = {
   OPR_22: { mode: 'road', volume: 52, activity: 91 }, OPR_23: { mode: 'air', volume: 49, activity: 89 },
   OPR_24: { mode: 'road', volume: 34, activity: 77 }, OPR_25: { mode: 'road', volume: 26, activity: 68 },
   OPR_26: { mode: 'water', volume: 21, activity: 42, severity: 'warning' }, OPR_27: { mode: 'water', volume: 29, activity: 73 },
-  OPR_28: { mode: 'rail', volume: 45, activity: 87 }, OPR_29: { mode: 'water', volume: 52, activity: 90 },
+  OPR_28: { mode: 'rail', volume: 45, activity: 87 },
   OPR_30: { mode: 'rail', volume: 39, activity: 84 }, OPR_31: { mode: 'rail', volume: 57, activity: 92 },
-  OPR_32: { mode: 'rail', volume: 68, activity: 95, multimodal: true }, OPR_33: { mode: 'water', volume: 63, activity: 93 },
-  OPR_34: { mode: 'air', volume: 42, activity: 86 }, OPR_35: { mode: 'water', volume: 47, activity: 89 },
-  OPR_39: { mode: 'rail', volume: 54, activity: 91, taskId: 'OP_TASK_GRAIN_SOUTH' },
-  OPR_40: { mode: 'water', volume: 88, activity: 98, taskId: 'OP_TASK_GRAIN_SOUTH' },
+  OPR_32: { mode: 'rail', volume: 68, activity: 95, multimodal: true },
+  OPR_34: { mode: 'air', volume: 42, activity: 86 },
+  OPR_36: { mode: 'rail', volume: 44, activity: 88 },
 };
 
 export const operationNetworkRelations = [
@@ -148,11 +141,6 @@ export const operationNetworkRelations = [
   { id: 'OPR_04', from: 'OP_NATIONAL_COORD', to: 'OP_CHENGDU_CENTER', type: 'collaboration', lod: 0 },
   { id: 'OPR_05', from: 'OP_NATIONAL_COORD', to: 'OP_GBA_CENTER', type: 'collaboration', lod: 0 },
   { id: 'OPR_06', from: 'OP_NATIONAL_COORD', to: 'OP_URUMQI_CENTER', type: 'collaboration', lod: 0 },
-  { id: 'OPR_07', from: 'OP_NORTHEAST_CENTER', to: 'OP_JILIN_GRAIN', type: 'order', lod: 1 },
-  { id: 'OPR_08', from: 'OP_JILIN_GRAIN', to: 'OP_YINGKOU_PORT', type: 'capacity', lod: 1 },
-  { id: 'OPR_09', from: 'OP_YINGKOU_PORT', to: 'OP_QINGDAO_PORT', type: 'handoff', lod: 1 },
-  { id: 'OPR_10', from: 'OP_QINGDAO_PORT', to: 'OP_SHANGHAI_PORT', type: 'handoff', lod: 1 },
-  { id: 'OPR_11', from: 'OP_SHANGHAI_PORT', to: 'OP_GBA_CENTER', type: 'handoff', lod: 0 },
   { id: 'OPR_12', from: 'OP_ZHENGZHOU_CENTER', to: 'OP_TIANJIN_HUB', type: 'capacity', lod: 1 },
   { id: 'OPR_13', from: 'OP_ZHENGZHOU_CENTER', to: 'OP_XIAN_RAIL', type: 'capacity', lod: 1 },
   { id: 'OPR_14', from: 'OP_XIAN_RAIL', to: 'OP_URUMQI_CENTER', type: 'handoff', lod: 1 },
@@ -170,15 +158,11 @@ export const operationNetworkRelations = [
   { id: 'OPR_26', from: 'OP_NINGBO_PORT', to: 'OP_SHANGHAI_PORT', type: 'exception', lod: 1 },
   { id: 'OPR_27', from: 'OP_BOHAI_SHIPPING', to: 'OP_YINGKOU_PORT', type: 'capacity', lod: 2 },
   { id: 'OPR_28', from: 'OP_NORTHEAST_CENTER', to: 'OP_TIANJIN_HUB', type: 'handoff', lod: 0 },
-  { id: 'OPR_29', from: 'OP_TIANJIN_HUB', to: 'OP_SHANGHAI_PORT', type: 'handoff', lod: 0 },
   { id: 'OPR_30', from: 'OP_URUMQI_CENTER', to: 'OP_ZHENGZHOU_CENTER', type: 'handoff', lod: 0 },
   { id: 'OPR_31', from: 'OP_CHENGDU_CENTER', to: 'OP_WUHAN_CENTER', type: 'handoff', lod: 0 },
   { id: 'OPR_32', from: 'OP_ZHENGZHOU_CENTER', to: 'OP_SHANGHAI_PORT', type: 'handoff', lod: 0 },
-  { id: 'OPR_33', from: 'OP_QINGDAO_PORT', to: 'OP_GBA_CENTER', type: 'handoff', lod: 0 },
   { id: 'OPR_34', from: 'OP_KUNMING_CENTER', to: 'OP_GBA_CENTER', type: 'handoff', lod: 0 },
-  { id: 'OPR_35', from: 'OP_XIAMEN_PORT', to: 'OP_SHANGHAI_PORT', type: 'handoff', lod: 1 },
-  { id: 'OPR_39', from: 'OP_ZHANJIANG_PORT', to: 'OP_GBA_CENTER', type: 'handoff', lod: 1 },
-  { id: 'OPR_40', from: 'OP_YINGKOU_PORT', to: 'OP_ZHANJIANG_PORT', type: 'handoff', lod: 1 },
+  { id: 'OPR_36', from: 'OP_QINGDAO_PORT', to: 'OP_ZHENGZHOU_CENTER', type: 'capacity', lod: 1 },
 ].map((relation) => ({ ...relation, ...OPERATION_RELATION_PROFILES[relation.id] }));
 
 export const operationDashboard = {
@@ -277,13 +261,6 @@ export const operationDashboard = {
     ],
   },
   tasks: [
-    {
-      id: 'OP_TASK_GRAIN_SOUTH', code: 'HLJ-20260813-038', name: '北粮南运',
-      route: '吉林 → 营口港 → 湛江港 → 佛山', status: '运输中', progress: 72, eta: '2025-05-18',
-      cargo: '粮食', mode: '公铁海联运', relationIds: ['OPR_07', 'OPR_08', 'OPR_40', 'OPR_39'],
-      nodes: ['东北区域运营中心', '吉林粮源组织节点', '营口港集疏运中心', '湛江港集疏运节点', '粤港澳大湾区运营中心'],
-      metrics: [{ label: '货物', value: '粮食' }, { label: '进度', value: '72%' }, { label: '预计到达', value: '2025-05-18' }, { label: '准点率', value: '97.2%' }],
-    },
     {
       id: 'OP_TASK_AUTO_EXPORT', code: 'CQ-20260813-028', name: '重庆整车出口运输任务', route: '重庆 → 武汉 → 上海港', status: '执行中', progress: 68, eta: '08-14 14:35',
       cargo: '整车 382 辆', mode: '公铁水联运', relationIds: ['OPR_16', 'OPR_17', 'OPR_19'],

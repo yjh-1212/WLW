@@ -429,7 +429,11 @@ export class DigitalLayer extends THREE.Group {
 
   getProvinceCorridorWorldPosition(id) {
     const item = this.provinceCorridors?.find((entry) => entry.corridor?.id === id);
-    return item?.tip ? item.tip.clone() : null;
+    if (!item) return null;
+    // 通道箭头挂在 provinceRoot 上，聚焦态整层还有 Z 位移与缩放；
+    // 必须换算到世界坐标，否则屏幕标签会和箭头脱层错位。
+    if (item.head) return item.head.getWorldPosition(new THREE.Vector3());
+    return item.tip ? this.localToWorld(item.tip.clone()) : null;
   }
 
   refreshProvinceVisibility() {
