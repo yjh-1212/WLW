@@ -52,6 +52,7 @@ export class ChinaBaseMap {
     this.provinceRings = new Map();
     this.focusedProvince = null;
     this.sandboxFocus = false;
+    this.contextFocus = false;
   }
 
   async load(url = '/data/china-provinces.svg') {
@@ -203,8 +204,15 @@ export class ChinaBaseMap {
       const selectedOutline = role === 'base' ? MAP_THEME.primary : this.outlineForRole(role);
       const selectedEmissive = role === 'base' ? MAP_THEME.primary : this.outlineForRole(role);
       const sandbox = this.sandboxFocus && selected ? this.sandboxPalette(role) : null;
+      const context = this.contextFocus && role === 'base';
       province.children.forEach((object) => {
         if (object.userData.kind === 'province-outline') {
+          if (context) {
+            object.material.color.set(selected ? '#4DDBE8' : '#405875');
+            object.material.opacity = selected ? 0.92 : 0.38;
+            object.renderOrder = selected ? 6 : 2;
+            return;
+          }
           object.material.color.set(
             sandbox
               ? sandbox.bright
@@ -214,6 +222,12 @@ export class ChinaBaseMap {
           return;
         }
         if (!object.material) return;
+        if (context) {
+          object.material.color.set(toNumberColor(selected ? '#0E718D' : '#071427'));
+          object.material.emissive?.set(toNumberColor(selected ? '#1495AB' : '#071427'));
+          object.material.emissiveIntensity = selected ? 0.14 : 0.05;
+          return;
+        }
         if (sandbox) {
           object.material.color.set(toNumberColor(sandbox.surface));
           object.material.emissive?.set(toNumberColor(sandbox.glow));
@@ -224,17 +238,22 @@ export class ChinaBaseMap {
         object.material.emissive.set(selected ? selectedEmissive : this.emissiveForRole(role));
         object.material.emissiveIntensity = selected ? (role === 'base' ? 0.48 : 0.62) : hovered ? 0.42 : (role === 'base' ? 0.22 : 0.38);
       });
+      if (context) {
+        province.position.z = selected ? 0.28 : 0;
+        return;
+      }
       province.position.z = selected ? 1.2 : hovered ? 0.5 : 0;
       if (this.sandboxFocus && selected) province.position.z = 0.92;
     });
   }
 
-  setProvinceFocus(name = null, { sandbox = false } = {}) {
+  setProvinceFocus(name = null, { sandbox = false, keepContext = false } = {}) {
     this.focusedProvince = name || null;
-    this.sandboxFocus = Boolean(name) && sandbox;
+    this.contextFocus = Boolean(name) && keepContext;
+    this.sandboxFocus = Boolean(name) && sandbox && !this.contextFocus;
     this.sheets.forEach((sheet) => {
       sheet.userData.provinces.forEach((province, provinceName) => {
-        province.visible = !this.focusedProvince || provinceName === this.focusedProvince;
+        province.visible = !this.focusedProvince || this.contextFocus || provinceName === this.focusedProvince;
       });
     });
     this.definitions.forEach(({ name: provinceName }) => {

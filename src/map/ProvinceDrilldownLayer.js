@@ -50,7 +50,7 @@ function cityLabelPriority(cityName, distanceFromCenter) {
   return score;
 }
 
-function makeCityLabel(cityName, point, role, priority = 12) {
+function makeCityLabel(cityName, point, role, priority = 12, height = 0.68, { fillColor = '#ffffff', tintColor } = {}) {
   const { labelColor } = roleStyle[role];
   const text = displayCityName(cityName);
   const canvas = document.createElement('canvas');
@@ -62,10 +62,10 @@ function makeCityLabel(cityName, point, role, priority = 12) {
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.lineJoin = 'round';
-  context.strokeStyle = 'rgba(6, 16, 24, 0.88)';
+  context.strokeStyle = 'rgba(5, 12, 24, 0.88)';
   context.lineWidth = 6;
   context.strokeText(text, canvas.width / 2, 32);
-  context.fillStyle = '#ffffff';
+  context.fillStyle = fillColor;
   context.fillText(text, canvas.width / 2, 32);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -73,7 +73,7 @@ function makeCityLabel(cityName, point, role, priority = 12) {
   texture.minFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;
   const material = new THREE.MeshBasicMaterial({
-    color: toNumberColor(labelColor),
+    color: toNumberColor(tintColor ?? labelColor),
     map: texture,
     transparent: true,
     depthTest: true,
@@ -86,7 +86,8 @@ function makeCityLabel(cityName, point, role, priority = 12) {
     side: THREE.DoubleSide,
   });
   material.userData.alwaysTransparent = true;
-  const labelHeight = 0.68;
+  let labelHeight = 0.68;
+  if (Number.isFinite(height)) labelHeight = height;
   const labelWidth = labelHeight * (canvas.width / canvas.height);
   const label = new THREE.Mesh(new THREE.PlaneGeometry(labelWidth, labelHeight), material);
   label.name = `${cityName}-${role}-municipal-label`;
@@ -144,7 +145,9 @@ export class ProvinceDrilldownLayer {
     this.hoveredCityName = null;
     this.weakCityNames = new Set();
     this.weakHighlight = false;
+    this.regionDemo = false;
     this.roleWeights = { infrastructure: 1, operation: 1, digital: 1 };
+    this.labelAppearAt = 0;
 
     this.connectorGeometry = new LineGeometry();
     this.connectorMaterial = new LineMaterial({
@@ -165,26 +168,31 @@ export class ProvinceDrilldownLayer {
     this.scene.add(this.connector);
   }
 
-  showProvince(provinceName, worldCenter, { accent, sandbox = false, sandboxRole = 'operation' } = {}) {
+  showProvince(provinceName, worldCenter, { accent, sandbox = false, sandboxRole = 'operation', showLabels = false, spotlight = true, hostSheet = null, regionDemo = false } = {}) {
     const province = this.provinceData?.provinces?.[provinceName];
     if (!province) return null;
     this.clearProvince();
     this.currentProvince = provinceName;
     this.sandboxMode = Boolean(sandbox);
     this.sandboxRole = sandbox ? sandboxRole : 'operation';
+    this.regionDemo = Boolean(regionDemo);
+    this.labelAppearAt = performance.now();
     const center = worldCenter?.clone?.() ?? this.projector.fromLngLat(province.cities[0]?.center ?? [104, 35]);
     const activityFills = [0x0f5a8c, 0x1468a0, 0x1a74b0, 0x2080be, 0x2688c8];
-    const infraFills = [0x0c2438, 0x102c44, 0x143450, 0x183c58, 0x0e283e];
+    const infraFills = [0x1b5078, 0x22608c, 0x286c9c, 0x1e5884, 0x174868];
+    const regionDemoFills = [0x0c5f78, 0x0e718d, 0x117a90, 0x0a556c, 0x0d6880];
 
     Object.entries(roleStyle).forEach(([role, baseStyle]) => {
       if (this.sandboxMode && role !== this.sandboxRole) return;
-      const style = this.sandboxMode
-        ? this.sandboxRole === 'infrastructure'
-          ? { ...baseStyle, color: '#6a8498', labelColor: '#E8F4FF', boundaryWidth: 0.78 }
-          : { ...baseStyle, color: '#4aa0c8', labelColor: '#D4ECF6', boundaryWidth: 0.82 }
-        : accent && role === 'operation'
-          ? { ...baseStyle, color: accent, labelColor: '#D8FFF4' }
-          : baseStyle;
+      const style = this.regionDemo
+        ? { ...baseStyle, color: '#3B98AA', labelColor: '#B9D5DD', boundaryWidth: 0.72 }
+        : this.sandboxMode
+          ? this.sandboxRole === 'infrastructure'
+            ? { ...baseStyle, color: '#7eb7d8', labelColor: '#E8F4FF', boundaryWidth: 0.92 }
+            : { ...baseStyle, color: '#4aa0c8', labelColor: '#D4ECF6', boundaryWidth: 0.82 }
+          : accent && role === 'operation'
+            ? { ...baseStyle, color: accent, labelColor: '#D8FFF4' }
+            : baseStyle;
       const root = new THREE.Group();
       root.name = `${provinceName}-${role}-city-boundaries`;
       const positions = [];
@@ -207,17 +215,21 @@ export class ProvinceDrilldownLayer {
                 if (index === 0) shape.moveTo(point.x, point.y);
                 else shape.lineTo(point.x, point.y);
               });
-              const fillPalette = this.sandboxRole === 'infrastructure' ? infraFills : activityFills;
+              const fillPalette = this.regionDemo
+                ? regionDemoFills
+                : this.sandboxRole === 'infrastructure' ? infraFills : activityFills;
               const fill = new THREE.Mesh(
                 new THREE.ShapeGeometry(shape),
                 new THREE.MeshStandardMaterial({
                   color: fillPalette[(cityIndex + pathIndex) % fillPalette.length],
-                  emissive: this.sandboxRole === 'infrastructure' ? 0x14344c : 0x1a6aaa,
-                  emissiveIntensity: this.sandboxRole === 'infrastructure' ? 0.08 : 0.12 + (cityIndex % 5) * 0.02,
+                  emissive: this.regionDemo ? 0x1495ab : this.sandboxRole === 'infrastructure' ? 0x1a5a88 : 0x1a6aaa,
+                  emissiveIntensity: this.regionDemo
+                    ? 0.08
+                    : this.sandboxRole === 'infrastructure' ? 0.16 : 0.12 + (cityIndex % 5) * 0.02,
                   metalness: 0.06,
-                  roughness: 0.78,
+                  roughness: 0.82,
                   transparent: true,
-                  opacity: this.sandboxRole === 'infrastructure' ? 0.78 : 0.92,
+                  opacity: this.regionDemo ? 0.78 : this.sandboxRole === 'infrastructure' ? 0.78 : 0.92,
                   depthWrite: true,
                 }),
               );
@@ -242,37 +254,40 @@ export class ProvinceDrilldownLayer {
         centroids.push(point.x, point.y, point.z);
         const planarDistance = Math.hypot(point.x - center.x, point.y - center.y);
         sandboxRadius = Math.max(sandboxRadius, planarDistance);
-        if (!this.sandboxMode) {
-          const label = makeCityLabel(city.name, point.clone().setZ(style.surfaceZ + 0.045), role, cityLabelPriority(city.name, planarDistance));
+        if (!this.sandboxMode || showLabels) {
+          const labelHeight = this.sandboxMode ? 0.40 : undefined;
+          const label = makeCityLabel(city.name, point.clone().setZ(style.surfaceZ + 0.045), role, cityLabelPriority(city.name, planarDistance), labelHeight, this.regionDemo ? { fillColor: '#B9D5DD', tintColor: '#B9D5DD' } : {});
           cityLabels.add(label);
           this.cityLabels.push(label);
         }
       });
 
       if (this.sandboxMode) {
-        const radius = Math.min(9.2, sandboxRadius * 1.12 + 0.35);
-        const shadow = new THREE.Mesh(
-          new THREE.CircleGeometry(radius, 48),
-          new THREE.MeshBasicMaterial({
-            color: 0x020814, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide,
-          }),
-        );
-        shadow.position.set(center.x, center.y, style.surfaceZ - 0.72);
-        shadow.scale.set(1, 1, 1);
-        shadow.renderOrder = 1;
-        shadow.userData.kind = 'sandbox-shadow';
-        root.add(shadow);
-        const halo = new THREE.Mesh(
-          new THREE.RingGeometry(radius * 0.9, radius * 1.16, 64),
-          new THREE.MeshBasicMaterial({
-            color: this.sandboxRole === 'infrastructure' ? 0x3a6a88 : 0x1a6a98, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide,
-          }),
-        );
-        halo.position.set(center.x, center.y, style.surfaceZ - 0.68);
-        halo.scale.set(1, 1, 1);
-        halo.renderOrder = 2;
-        halo.userData.kind = 'sandbox-halo';
-        root.add(halo);
+        if (spotlight) {
+          const radius = Math.min(9.2, sandboxRadius * 1.12 + 0.35);
+          const shadow = new THREE.Mesh(
+            new THREE.CircleGeometry(radius, 48),
+            new THREE.MeshBasicMaterial({
+              color: 0x020814, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide,
+            }),
+          );
+          shadow.position.set(center.x, center.y, style.surfaceZ - 0.72);
+          shadow.scale.set(1, 1, 1);
+          shadow.renderOrder = 1;
+          shadow.userData.kind = 'sandbox-shadow';
+          root.add(shadow);
+          const halo = new THREE.Mesh(
+            new THREE.RingGeometry(radius * 0.9, radius * 1.16, 64),
+            new THREE.MeshBasicMaterial({
+              color: this.sandboxRole === 'infrastructure' ? 0x3a6a88 : 0x1a6a98, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide,
+            }),
+          );
+          halo.position.set(center.x, center.y, style.surfaceZ - 0.68);
+          halo.scale.set(1, 1, 1);
+          halo.renderOrder = 2;
+          halo.userData.kind = 'sandbox-halo';
+          root.add(halo);
+        }
         root.add(cityFills);
       }
 
@@ -288,7 +303,7 @@ export class ProvinceDrilldownLayer {
       });
       if (this.sandboxMode) {
         boundaryMaterial.transparent = true;
-        boundaryMaterial.opacity = 0.28;
+        boundaryMaterial.opacity = this.regionDemo ? 0.35 : 0.46;
       }
       boundaryMaterial.resolution.copy(this.resolution);
       boundaryMaterial.userData.provinceStoryOpacity = boundaryMaterial.opacity;
@@ -313,12 +328,13 @@ export class ProvinceDrilldownLayer {
         centroidGeometry.dispose();
         centroidMaterial.dispose();
       }
-      if (!this.sandboxMode) root.add(cityLabels);
+      if (!this.sandboxMode || showLabels) root.add(cityLabels);
 
       const platformNode = makePlatformNode(provinceName, center, role);
       if (!this.sandboxMode) root.add(platformNode);
       this.markerNodes.set(role, platformNode);
-      const provinceGroup = this.layers[role]?.sheet?.userData?.provinces?.get(provinceName);
+      const host = hostSheet ?? this.layers[role]?.sheet;
+      const provinceGroup = host?.userData?.provinces?.get(provinceName);
       (provinceGroup ?? this.layers[role]).add(root);
       this.roots.set(role, root);
     });
@@ -464,6 +480,22 @@ export class ProvinceDrilldownLayer {
     });
   }
 
+  animateCityLabels() {
+    const t = (performance.now() - (this.labelAppearAt || performance.now())) / 1000;
+    this.cityLabels.forEach((label, index) => {
+      if (!label.visible) return;
+      const appear = THREE.MathUtils.clamp((t - index * 0.07) / 0.42, 0, 1);
+      const bounce = appear * appear * (3 - 2 * appear);
+      const pulse = this.regionDemo ? 1 : 1 + 0.045 * Math.sin(t * 2.4 + index * 0.65);
+      const scale = this.regionDemo ? 1 : (0.78 + 0.22 * bounce) * pulse;
+      label.scale.set(scale, scale, 1);
+      if (label.material) {
+        label.material.opacity = this.regionDemo ? 0.82 : 0.18 + 0.82 * bounce;
+        label.material.transparent = true;
+      }
+    });
+  }
+
   update(elapsed = 0, camera = null, width = 0, height = 0) {
     this.markerNodes.forEach((node, role) => {
       node.rotation.z = role === 'digital' ? Math.sin(elapsed * 0.6) * 0.04 : 0;
@@ -472,6 +504,7 @@ export class ProvinceDrilldownLayer {
       });
     });
     this.updateCityLabels(camera, width, height);
+    this.animateCityLabels();
     if (!this.connector.visible || this.markerNodes.size < 2) return;
     const points = ['infrastructure', 'operation', 'digital']
       .filter((role) => this.roleWeights[role] > 0.05)
@@ -511,6 +544,7 @@ export class ProvinceDrilldownLayer {
     this.hoveredCityName = null;
     this.weakCityNames = new Set();
     this.weakHighlight = false;
+    this.regionDemo = false;
     this.connector.visible = false;
   }
 

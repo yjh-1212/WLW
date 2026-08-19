@@ -25,6 +25,16 @@ export class CameraDirector {
     this.moveTo(this.homePosition, this.homeTarget, duration, { fov: 35 });
   }
 
+  snapTo(position, target, fov) {
+    this.cancelMove();
+    this.programmatic = false;
+    this.camera.position.copy(position);
+    this.controls.target.copy(target);
+    if (Number.isFinite(fov)) this.setFieldOfView(fov);
+    if (this.controls) this.controls.enabled = true;
+    this.settleControls();
+  }
+
   setExploded(active) {
     // 三层货架视角：轻微侧向倾斜，避免完全正南的平板感；目标略偏东，
     // 让全国轮廓整体偏左，给右下角南海附图留出空间。
@@ -57,6 +67,7 @@ export class CameraDirector {
   focusProvinceBounds(box, {
     exploded = false,
     cockpit = false,
+    context = false,
     fill = 1.08,
     duration = 0.85,
     viewWidth = 0,
@@ -66,6 +77,11 @@ export class CameraDirector {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const span = Math.max(size.x, size.y);
+    if (context) {
+      const distance = THREE.MathUtils.clamp(span * 1.88, 34, 72);
+      this.focusPoint(center, { distance, duration, fov: 26 });
+      return;
+    }
     if (exploded) {
       // A distant camera with a narrow field of view reduces perspective size
       // differences between the lower and upper province sheets without making

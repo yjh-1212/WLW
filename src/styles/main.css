@@ -136,6 +136,73 @@
 .story-launch>i svg [stroke]{stroke-width:2}
 .story-launch>span{display:grid;gap:2px}.story-launch b{font-size:10px;letter-spacing:.06em}.story-launch small{font-size:7px;color:#78a7bb;letter-spacing:.04em}
 
+/* ===== Scene demo dropdown ===== */
+.scene-demo-dropdown{position:relative;flex:none}
+.scene-demo-trigger{
+  height:42px;padding:0 14px;border:1px solid rgba(93,211,255,.30);border-radius:7px;
+  display:flex;align-items:center;gap:8px;cursor:pointer;color:#dff8ff;
+  background:linear-gradient(135deg,rgba(24,124,174,.22),rgba(15,67,101,.26));
+  box-shadow:inset 0 0 18px rgba(51,199,255,.035);transition:border-color .2s,background .2s,transform .2s
+}
+.scene-demo-trigger:hover{border-color:rgba(94,220,255,.52);background:linear-gradient(135deg,rgba(27,153,209,.28),rgba(18,85,124,.32));transform:translateY(-1px)}
+.scene-demo-trigger>i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:8px;font-style:normal;color:#062236;background:#7fe4ff;box-shadow:0 0 14px rgba(75,208,255,.46)}
+.scene-demo-trigger>i svg{width:12px;height:12px}
+.scene-demo-trigger>i svg [stroke]{stroke-width:2}
+.scene-demo-trigger>span{font-size:11px;font-weight:700;letter-spacing:.06em}
+.scene-demo-trigger>small{font-size:10px;color:#78a7bb;margin-left:2px;transition:transform .2s}
+.scene-demo-trigger[aria-expanded="true"]>small{transform:rotate(180deg)}
+.scene-demo-menu{
+  display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:184px;padding:6px 0;
+  border:1px solid rgba(93,211,255,.24);border-radius:9px;
+  background:rgba(6,28,42,.96);backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:120
+}
+.scene-demo-menu.is-open{display:block}
+.scene-demo-menu hr{border:none;border-top:1px solid rgba(93,211,255,.14);margin:4px 12px}
+.scene-demo-item{
+  display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 16px;text-align:left;cursor:pointer;
+  color:#dff8ff;background:transparent;border:none;transition:background .15s
+}
+.scene-demo-item:hover{background:rgba(56,188,240,.12)}
+.scene-demo-item b{font-size:11px;letter-spacing:.06em}
+.scene-demo-item small{font-size:8px;color:#78a7bb;letter-spacing:.04em}
+.scene-demo-item.shandong b{color:#a5f562}
+
+/* 山东区域：纯净模式，只留省域地图、左上文案与场景 HUD */
+.region-demo-pure .map-aura,
+.region-demo-pure .south-sea-inset,
+.region-demo-pure .stack-layer-labels,
+.region-demo-pure .north-indicator,
+.region-demo-pure .province-platform-card,
+.region-demo-pure .province-return-fab,
+.region-demo-pure #operation-workspace,
+.region-demo-pure #infrastructure-workspace,
+.region-demo-pure #digital-workspace,
+.region-demo-pure #exploded-workspace,
+.app-shell.region-demo-pure #left-drawer,
+.app-shell.region-demo-pure #right-drawer{
+  display:none !important
+}
+.region-demo-pure .scene-caption{
+  display:block;
+  left:28px;
+  top:20px;
+  max-width:min(460px,46vw);
+  z-index:16;
+}
+.region-demo-pure .scene-caption .caption-en,
+.region-demo-pure .scene-caption .caption-networks{display:none}
+.region-demo-pure .caption-index{font-size:10px;letter-spacing:.16em;color:#7ecce0;margin-bottom:8px}
+.region-demo-pure .scene-caption h2{font-size:clamp(22px,2.1vw,30px);margin:0 0 8px;color:#eaf6fb}
+.region-demo-pure .scene-caption p{font-size:13px;line-height:1.6;color:#B9D5DD;-webkit-line-clamp:3}
+.region-demo-pure.map-stage,
+.app-shell.region-demo-pure .map-stage{
+  background:radial-gradient(ellipse at 52% 48%,#16243A 0%,#0b1828 36%,#050C18 78%,#030810 100%)
+}
+.region-demo-pure .story-hud{
+  left:auto;right:20px;top:14px;bottom:auto;width:min(320px,34vw);background:rgba(4,18,30,.72)
+}
+.region-demo-pure .story-shipment{display:none}
+
 .story-hud{
   --stage-progress:0;position:absolute;left:auto;right:24px;top:16px;bottom:auto;z-index:15;width:min(400px,calc(100% - 48px));min-width:0;
   padding:15px 17px 12px;border:1px solid rgba(76,202,255,.28);border-radius:10px;
@@ -180,9 +247,9 @@
 /* 125%/150% desktop scaling commonly leaves a 1440-1700px CSS viewport.
    Compress the action group before the equal outer grid columns become
    narrower than their contents; otherwise it spills left over the mode nav. */
-@media(max-width:1800px){.story-launch{min-width:108px;padding:0 9px}.story-launch small{display:none}.search-box{width:150px}}
-@media(max-width:1180px){.story-launch{min-width:42px;width:42px;padding:0;justify-content:center}.story-launch>span{display:none}}
-@media(max-width:850px){.story-launch{width:36px;min-width:36px;height:36px}.story-hud{left:12px;right:12px;top:12px;bottom:auto;width:auto;min-width:0;padding:13px 14px 10px;transform:translateY(-16px)}.story-hud.is-open{transform:translateY(0)}.story-shipment{display:none}.story-hud h3{font-size:16px}.story-hud>p{font-size:9px;-webkit-line-clamp:1}.story-metrics{margin-top:7px}.story-metrics span{min-height:42px;padding:6px}.story-metrics b{font-size:9px}.story-actors{min-height:23px}.story-active .south-sea-inset{right:14px;bottom:12px;width:72px;height:104px}}
+@media(max-width:1800px){.story-launch{min-width:108px;padding:0 9px}.story-launch small{display:none}.search-box{width:150px}.scene-demo-trigger{padding:0 10px}}
+@media(max-width:1180px){.story-launch{min-width:42px;width:42px;padding:0;justify-content:center}.story-launch>span{display:none}.scene-demo-trigger>span{display:none}.scene-demo-trigger>small{display:none}.scene-demo-trigger{padding:0;width:42px;min-width:42px;justify-content:center}}
+@media(max-width:850px){.story-launch{width:36px;min-width:36px;height:36px}.scene-demo-trigger{width:36px;min-width:36px;height:36px;padding:0;justify-content:center}.scene-demo-trigger>span,.scene-demo-trigger>small{display:none}.story-hud{left:12px;right:12px;top:12px;bottom:auto;width:auto;min-width:0;padding:13px 14px 10px;transform:translateY(-16px)}.story-hud.is-open{transform:translateY(0)}.story-shipment{display:none}.story-hud h3{font-size:16px}.story-hud>p{font-size:9px;-webkit-line-clamp:1}.story-metrics{margin-top:7px}.story-metrics span{min-height:42px;padding:6px}.story-metrics b{font-size:9px}.story-actors{min-height:23px}.story-active .south-sea-inset{right:14px;bottom:12px;width:72px;height:104px}}
 @media(max-width:540px){.story-hud{padding:13px 12px 9px}.story-hud>p{display:none}.story-metrics span{padding:6px}.story-stage-track i:nth-child(even){display:none}.story-hud>footer button:last-child{display:none}}
 
 /* ===== Provincial logistics platform drill-down ===== */
@@ -365,6 +432,7 @@
 .operation-page .north-indicator{display:none}
 .operation-page .story-launch{height:36px;min-width:118px}
 .operation-page .story-launch small{display:none}
+.operation-page .scene-demo-trigger{height:36px}
 .operation-page-heading h2{font-size:18px;font-weight:650}
 .operation-page-heading p{display:block;font-size:11px;color:#8aadc0;letter-spacing:.02em;white-space:nowrap}
 .operation-page .search-box{width:min(228px,100%)}
@@ -731,6 +799,7 @@
 .digital-map-heading b{color:#eafff5;font-size:15px;letter-spacing:.08em}
 .digital-map-heading small{color:#6e9f90;font-size:10px;letter-spacing:.04em}
 .digital-page .story-launch{min-width:118px}
+.digital-page .scene-demo-trigger{min-width:118px}
 
 .infra-page .operation-page-heading{border-left-color:rgba(255,181,71,.28)}
 .digital-page .operation-page-heading{border-left-color:rgba(70,230,154,.28)}

@@ -14,6 +14,8 @@ import { OperationLayer } from '../layers/operation/OperationLayer.js';
 import { DigitalLayer } from '../layers/digital/DigitalLayer.js';
 import { PenetrationController } from '../interaction/PenetrationController.js';
 import { LogisticsStoryController } from '../story/LogisticsStoryController.js';
+import { ShandongRegionDemoController } from '../story/ShandongRegionDemoController.js';
+import { STORY_IDS } from '../data/LayerDataManager.js';
 import { HomeGlobeIntro, loadWorldOutline, prefersReducedMotion } from '../intro/HomeGlobeIntro.js';
 import { MAP_THEME, toNumberColor } from '../theme/mapTheme.js';
 import { makeWideLine, updateLineResolution } from '../layers/rendering.js';
@@ -74,6 +76,7 @@ export class MapRuntime {
     this.provinceIsolationVisibility = new Map();
     this.storyContentVisibility = new Map();
     this.storyProvinceFocus = null;
+    this.regionDemoProvince = null;
     this.storyLayerWeights = { infrastructure: 1, operation: 1, digital: 1 };
     this.storySheetWeights = { infrastructure: 1, operation: 1, digital: 1 };
     this.storyReturnSnapshot = null;
@@ -164,6 +167,7 @@ export class MapRuntime {
     this.scene.add(this.selectionRoot);
     this.penetration = new PenetrationController({ registry: this.registry, selectionRoot: this.selectionRoot });
     this.story = new LogisticsStoryController(this);
+    this.shandongDemo = new ShandongRegionDemoController(this);
     this.interaction = new InteractionManager(this);
 
     this.stateMachine.addEventListener('change', (event) => this.applyState(event.detail));
@@ -269,6 +273,10 @@ export class MapRuntime {
    */
   setFloorHudAmount(amount) {
     if (!this.floorHudRoot) return;
+    if (this.regionDemoProvince) {
+      this.floorHudRoot.visible = false;
+      return;
+    }
     const value = THREE.MathUtils.clamp(Number(amount), 0, 1);
     this.floorHudRoot.visible = value > 0.02;
     this.floorHudRoot.traverse((object) => {
@@ -667,7 +675,7 @@ export class MapRuntime {
   setExplodedLayerFocus(focus = null) {
     const next = focus === 'all' ? null : focus;
     this.explodedFocusLayer = next;
-    const storyPresentation = Boolean(this.story?.active || this.story?.completed || this.stateMachine.context?.story);
+    const storyPresentation = Boolean(this.story?.active || this.story?.completed || this.shandongDemo?.active || this.shandongDemo?.completed || this.stateMachine.context?.story);
     if (this.stateMachine.state !== MAP_STATES.EXPLODED || this.selectedProvince || storyPresentation) return;
 
     if (!next) {
@@ -797,6 +805,7 @@ export class MapRuntime {
     this.setProvinceIsolation(false);
     this.setStoryContentIsolation(false);
     this.clearStoryProvinceFocus();
+    this.exitRegionDemoView();
     this.setProvinceSheetSolidity(false);
     this.selectedProvince = null;
     this.provinceEntryState = null;
@@ -810,24 +819,42 @@ export class MapRuntime {
     this.ui.closeProvincePlatform();
   }
 
+  activeDemo() {
+    if (this.shandongDemo?.active || this.shandongDemo?.completed) return this.shandongDemo;
+    return this.story;
+  }
+
   async toggleStory(storyId) {
-    if (this.story?.active) {
-      if (!storyId || this.story.story?.id === storyId) {
-        if (this.story.playing) this.story.pause();
-        else this.story.resume();
+    const runningDemo = this.activeDemo();
+    const currentId = runningDemo?.story?.id;
+    if (runningDemo?.active) {
+      if (!storyId || currentId === storyId) {
+        if (runningDemo.playing) runningDemo.pause();
+        else runningDemo.resume();
         return;
       }
-      this.story.stop({ restoreScene: false });
+      runningDemo.stop({ restoreScene: false });
     }
-    if (this.story?.completed) this.story.stop({ restoreScene: false });
+    const startId = storyId || currentId;
+    if (runningDemo?.completed) {
+      runningDemo.stop({ restoreScene: false, hideUi: Boolean(storyId && storyId !== currentId) });
+    }
+    if (!startId) return;
+
     if (this.selectedProvince) this.resetView();
-    const story = await this.dataManager.loadStory(storyId);
     this.ui.closeRightDrawer();
+
+    if (startId === STORY_IDS.SHANDONG_REGION) {
+      this.shandongDemo.start();
+      return;
+    }
+
+    const story = await this.dataManager.loadStory(startId);
     this.story.start(story);
   }
 
   stopStory() {
-    this.story?.stop({ restoreScene: true });
+    this.activeDemo()?.stop({ restoreScene: true });
   }
 
   captureViewSnapshot() {
@@ -873,7 +900,7 @@ export class MapRuntime {
     const duration = animate ? (state === MAP_STATES.EXPLODED || state === MAP_STATES.PENETRATION ? 1 : 0.65) : 0.001;
     let config = layerState.combined;
     let baseOpacity = 0.72;
-    const storyPresentation = Boolean(context.story || this.story?.active || this.story?.completed);
+    const storyPresentation = Boolean(context.story || this.story?.active || this.story?.completed || this.shandongDemo?.active || this.shandongDemo?.completed);
     const provincePlatformOnly = Boolean(
       this.selectedProvince
       && !storyPresentation
@@ -881,10 +908,17 @@ export class MapRuntime {
       && !this.provinceInfrastructureView
       && !this.provinceDigitalView,
     );
-    if (state === MAP_STATES.EXPLODED || state === MAP_STATES.PENETRATION || (provincePlatformOnly && state === MAP_STATES.FOCUS_DIGITAL)) {
-      config = this.selectedProvince ? layerState.provinceExploded : layerState.exploded;
+    if (this.regionDemoProvince) {
+      config = {
+        infrastructure: { ...layerState.combined.infrastructure, weight: 0 },
+        operation: { ...layerState.combined.operation, weight: 0 },
+        digital: { ...layerState.combined.digital, weight: 0 },
+      };
+      baseOpacity = 0.92;
+    } else if (state === MAP_STATES.EXPLODED || state === MAP_STATES.PENETRATION || (provincePlatformOnly && state === MAP_STATES.FOCUS_DIGITAL)) {
+      config = (this.selectedProvince || this.regionDemoProvince) ? layerState.provinceExploded : layerState.exploded;
       // 全国三层分解时基础设施会落到 baseSheet 之下；底图必须关掉，否则会出现灰色残影。
-      baseOpacity = this.selectedProvince ? 0.10 : 0;
+      baseOpacity = (this.selectedProvince || this.regionDemoProvince) ? 0.10 : 0;
     } else if (stateToLayer[state]) {
       config = this.focusLayerConfig(stateToLayer[state]);
       baseOpacity = 0.18;
@@ -936,8 +970,9 @@ export class MapRuntime {
     // 全国分解态把底图藏到栈底以下，避免与基础设施板叠出灰色幽灵轮廓。
     if (this.baseSheet) {
       this.baseSheet.visible = baseOpacity > 0.01;
-      this.baseSheet.position.z = baseOpacity > 0.01 ? -2.4 : -28;
+      this.baseSheet.position.z = this.baseSheet.visible ? -2.4 : -28;
     }
+    if (this.regionDemoProvince) this.hideRegionDemoLayerSheets();
     this.ui.updateMode(state, stateToLayer[state] ?? null, context);
     if (!storyPresentation && !this.selectedProvince && stateToLayer[state]) {
       this.networkFocusLayer = stateToLayer[state];
@@ -1007,6 +1042,7 @@ export class MapRuntime {
 
   updateCameraForState(state, animate = true) {
     if (this.cameraUserOverride) return;
+    if (this.regionDemoProvince && (this.shandongDemo?.active || this.shandongDemo?.completed)) return;
     if (this.selectedProvince) {
       const sheet = state === MAP_STATES.FOCUS_OPERATION
         ? (this.layers.operation?.sheet ?? this.baseSheet)
@@ -1078,7 +1114,7 @@ export class MapRuntime {
     this.provinceDrilldown?.setRoleWeights(weights);
     this.enforceStorySheetSolidity();
     // setVisualWeight → refreshVisibility can resurrect national flows; keep story isolation sticky.
-    if (this.story?.active || this.story?.completed || this.stateMachine.context?.story) {
+    if (this.story?.active || this.story?.completed || this.shandongDemo?.active || this.shandongDemo?.completed || this.stateMachine.context?.story) {
       this.setStoryContentIsolation(true);
     }
   }
@@ -1114,6 +1150,104 @@ export class MapRuntime {
     }
     this.storyContentVisibility.forEach((visible, object) => { object.visible = visible; });
     this.storyContentVisibility.clear();
+  }
+
+  hideRegionDemoLayerSheets() {
+    Object.values(this.layers ?? {}).forEach((layer) => {
+      if (layer?.sheet) layer.sheet.visible = false;
+    });
+  }
+
+  showRegionDemoLayerSheets() {
+    Object.values(this.layers ?? {}).forEach((layer) => {
+      if (layer?.sheet) layer.sheet.visible = true;
+    });
+  }
+
+  getRegionContextBounds(provinceName, sheet = this.baseSheet) {
+    const bounds = this.baseMap.getProvinceBounds(provinceName, sheet);
+    if (!bounds) return null;
+    const expanded = bounds.clone();
+    const size = bounds.getSize(new THREE.Vector3());
+    expanded.min.x -= size.x * 0.16;
+    expanded.max.x += size.x * 0.18;
+    expanded.min.y -= size.y * 0.18;
+    expanded.max.y += size.y * 0.16;
+    return expanded;
+  }
+
+  enterRegionDemoView(provinceName, { exploded = false } = {}) {
+    if (!provinceName) return null;
+    const province = this.data.provinceBoundaries?.provinces?.[provinceName];
+    if (!province) return null;
+    this.regionDemoProvince = provinceName;
+    this.setStoryContentIsolation(true);
+    this.baseMap.setProvinceFocus(provinceName, { keepContext: true });
+    const hideObjects = this.getNationalContentObjects();
+    hideObjects.forEach((object) => {
+      if (!this.storyContentVisibility.has(object)) this.storyContentVisibility.set(object, object.visible);
+      object.visible = false;
+    });
+    const bounds = this.baseMap.getProvinceBounds(provinceName, this.baseSheet);
+    const center = bounds?.getCenter(new THREE.Vector3()) ?? new THREE.Vector3();
+    this.provinceDrilldown?.showProvince(provinceName, center, {
+      sandbox: true,
+      sandboxRole: 'infrastructure',
+      showLabels: true,
+      spotlight: false,
+      hostSheet: this.baseSheet,
+      regionDemo: true,
+    });
+    this.setFloorHudAmount(0);
+    this.provinceDrilldown?.setExploded(false);
+    this.lod.setFocus(provinceName);
+    this.ui.setSpatialContext(provinceName);
+    this.ui.setRegionDemoPure?.(true);
+    if (this.baseSheet) {
+      this.baseSheet.visible = true;
+      this.baseSheet.position.z = -2.4;
+      this.baseMap.setSheetOpacity(this.baseSheet, 0.92);
+    }
+    this.hideRegionDemoLayerSheets();
+    return bounds;
+  }
+
+  exitRegionDemoView() {
+    if (!this.regionDemoProvince && !this.ui?.root?.querySelector('.region-demo-pure')) {
+      this.ui.setRegionDemoPure?.(false);
+      return;
+    }
+    this.regionDemoProvince = null;
+    this.baseMap.setProvinceFocus(null);
+    this.provinceDrilldown?.clearProvince();
+    this.setProvinceSheetSolidity(false);
+    this.showRegionDemoLayerSheets();
+    this.lod.setFocus(null);
+    this.ui.setSpatialContext(null);
+    this.ui.setRegionDemoPure?.(false);
+    if (this.baseSheet) {
+      this.baseSheet.visible = true;
+      this.baseSheet.position.z = -2.4;
+    }
+    this.setFloorHudAmount(this.homeIntroReveal ?? 1);
+  }
+
+  focusRegionDemoCamera(duration = 2.2, { fromNational = false } = {}) {
+    if (!this.regionDemoProvince) return;
+    const sheet = this.baseSheet;
+    sheet?.updateMatrixWorld?.(true);
+    const bounds = this.getRegionContextBounds(this.regionDemoProvince, sheet);
+    if (!bounds) return;
+    if (fromNational) {
+      this.cameraDirector.snapTo(this.cameraDirector.homePosition, this.cameraDirector.homeTarget, 35);
+    }
+    this.cameraDirector.focusProvinceBounds(bounds, {
+      context: true,
+      duration,
+      viewWidth: this.canvas?.parentElement?.clientWidth ?? 0,
+      viewHeight: this.canvas?.parentElement?.clientHeight ?? 0,
+      aspect: this.camera.aspect,
+    });
   }
 
   focusStoryProvince(provinceName) {
@@ -1377,12 +1511,15 @@ export class MapRuntime {
 
   resetView({ returnToEntry = false } = {}) {
     this.cameraUserOverride = false;
-    const interruptedStory = Boolean(this.story?.active || this.story?.completed);
+    const interruptedStory = Boolean(this.story?.active || this.story?.completed || this.shandongDemo?.active || this.shandongDemo?.completed);
     const drilledProvince = this.selectedProvince;
     const destinationState = returnToEntry && drilledProvince
       ? (this.provinceEntryState ?? MAP_STATES.COMBINED)
       : MAP_STATES.COMBINED;
-    if (interruptedStory) this.story.stop({ restoreScene: false });
+    if (interruptedStory) {
+      this.story.stop({ restoreScene: false });
+      this.shandongDemo?.stop({ restoreScene: false });
+    }
     this.clearProvinceView();
     if (drilledProvince || interruptedStory || this.stateMachine.state === MAP_STATES.PENETRATION || this.stateMachine.state === MAP_STATES.TASK_TRACE) {
       this.setState(destinationState);
@@ -1643,7 +1780,7 @@ export class MapRuntime {
 
   updateOperationOverlays() {
     if (!this.ui?.syncOperationOverlays) return;
-    const storyPresentation = Boolean(this.story?.active || this.story?.completed);
+    const storyPresentation = Boolean(this.story?.active || this.story?.completed || this.shandongDemo?.active || this.shandongDemo?.completed);
     const state = this.stateMachine.state;
     const layerName = stateToLayer[state];
     const dashboardActive = (state === MAP_STATES.FOCUS_OPERATION
@@ -1805,6 +1942,7 @@ export class MapRuntime {
     this.renderer.setSize(width, height, false);
     Object.values(this.layers ?? {}).forEach((layer) => layer.resize(width, height));
     if (this.stackConnectorRoot) updateLineResolution(this.stackConnectorRoot, width, height);
+    this.shandongDemo?.syncLineResolution();
     this.penetration?.resize(width, height);
     this.provinceDrilldown?.resize(width, height);
   }
@@ -1813,6 +1951,7 @@ export class MapRuntime {
     const elapsed = this.clock.getElapsedTime();
     this.animations.update();
     this.story?.update();
+    this.shandongDemo?.update();
     if (this.homeIntro?.active) this.homeIntro.update(elapsed);
     else if (this.cameraDirector?.programmatic) this.camera.lookAt(this.controls.target);
     else this.controls.update();

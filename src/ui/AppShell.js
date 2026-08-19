@@ -582,13 +582,22 @@ export class AppShell {
             </div>
           </nav>
           <div class="top-actions">
-            <div class="story-launch-group" aria-label="业务流程">
-              <button class="story-launch north-grain" type="button" data-story-id="${STORY_IDS.NORTH_GRAIN}" aria-label="启动北粮南运业务流程">
-                <i aria-hidden="true">${iconSvg('play')}</i><span><b>北粮南运</b><small>公铁海多式联运</small></span>
+            <div class="scene-demo-dropdown" aria-label="场景演示">
+              <button class="scene-demo-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+                <i aria-hidden="true">${iconSvg('play')}</i><span>场景演示</span><small>▾</small>
               </button>
-              <button class="story-launch auto-parts" id="story-toggle" type="button" data-story-id="${STORY_IDS.AUTO_PARTS}" aria-label="启动汽车出海业务流程">
-                <i aria-hidden="true">${iconSvg('play')}</i><span><b>汽车出海</b><small>渝沪协同 · 整车出口</small></span>
-              </button>
+              <div class="scene-demo-menu" role="menu">
+                <button class="scene-demo-item" role="menuitem" data-story-id="${STORY_IDS.NORTH_GRAIN}">
+                  <b>北粮南运</b><small>公铁海多式联运</small>
+                </button>
+                <button class="scene-demo-item" role="menuitem" data-story-id="${STORY_IDS.AUTO_PARTS}" id="story-toggle">
+                  <b>汽车出海</b><small>渝沪协同 · 整车出口</small>
+                </button>
+                <hr aria-hidden="true" />
+                <button class="scene-demo-item shandong" role="menuitem" data-story-id="${STORY_IDS.SHANDONG_REGION}">
+                  <b>山东区域</b><small>区域物流一张图</small>
+                </button>
+              </div>
             </div>
             <div class="search-box">
               <span aria-hidden="true">⌕</span>
@@ -839,10 +848,24 @@ export class AppShell {
       }
       const layerJump = event.target.closest('[data-layer-jump]');
       if (layerJump && this.runtime) this.runtime.focusEntityLayer(layerJump.dataset.layerJump);
+      // Scene demo dropdown toggle
+      const demoTrigger = event.target.closest('.scene-demo-trigger');
+      if (demoTrigger) {
+        const menu = demoTrigger.parentElement.querySelector('.scene-demo-menu');
+        const open = menu.classList.toggle('is-open');
+        demoTrigger.setAttribute('aria-expanded', String(open));
+        return;
+      }
       const storyLaunch = event.target.closest('[data-story-id]');
-      if (storyLaunch && this.runtime) this.runtime.toggleStory(storyLaunch.dataset.storyId);
+      if (storyLaunch && this.runtime) {
+        // Close dropdown after selection
+        const menu = this.root.querySelector('.scene-demo-menu');
+        menu?.classList.remove('is-open');
+        this.root.querySelector('.scene-demo-trigger')?.setAttribute('aria-expanded', 'false');
+        this.runtime.toggleStory(storyLaunch.dataset.storyId);
+      }
       if (event.target.closest('#story-control') && this.runtime) this.runtime.toggleStory();
-      if (event.target.closest('#story-follow') && this.runtime) this.runtime.story?.toggleCameraFollow();
+      if (event.target.closest('#story-follow') && this.runtime) this.runtime.activeDemo()?.toggleCameraFollow();
       if (event.target.closest('#story-exit') && this.runtime) this.runtime.stopStory();
       if (event.target.closest('#penetration-action') && this.runtime) this.runtime.activatePenetration();
       if (event.target.closest('#right-drawer-close')) this.closeRightDrawer();
@@ -869,6 +892,10 @@ export class AppShell {
     });
     document.addEventListener('click', (event) => {
       if (!event.target.closest('.search-box')) this.closeSearch();
+      if (!event.target.closest('.scene-demo-dropdown')) {
+        this.root.querySelector('.scene-demo-menu')?.classList.remove('is-open');
+        this.root.querySelector('.scene-demo-trigger')?.setAttribute('aria-expanded', 'false');
+      }
     });
     window.addEventListener('keydown', (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -987,14 +1014,14 @@ export class AppShell {
         ? [`${provinceName} · ${layerLabels[layer][0]}`, `${cityCount} 个地市级边界`]
         : regionalTitles[state] ?? regionalTitles[MAP_STATES.COMBINED];
     }
-    if (!this.runtime?.story?.active && !this.runtime?.story?.completed) {
+    if (!this.runtime?.story?.active && !this.runtime?.story?.completed && !this.runtime?.shandongDemo?.active && !this.runtime?.shandongDemo?.completed) {
       this.root.querySelector('#scene-title').textContent = title[0];
       this.root.querySelector('#scene-subtitle').textContent = title[1];
       this.root.querySelector('#caption-index').textContent = provinceName ? '02 / PROVINCIAL PLATFORM VIEW' : '01 / NATIONAL PLATFORM VIEW';
     }
     this.currentLayer = layer;
     const drawer = this.root.querySelector('#left-drawer');
-    const showLayerDrawer = Boolean(layer) && (!inProvince || provinceCockpit);
+    const showLayerDrawer = Boolean(layer) && (!inProvince || provinceCockpit) && !this.root.classList.contains('region-demo-pure');
     drawer.classList.toggle('is-open', showLayerDrawer);
     if (showLayerDrawer) this.renderLayerDrawer(layer);
     if (showLayerDrawer && layer === 'operation') this.setOperationMode(this.operationMode, { syncRuntime: false });
@@ -1743,6 +1770,7 @@ export class AppShell {
     hud.classList.remove('is-complete', 'is-paused');
     hud.setAttribute('aria-hidden', 'false');
     this.root.querySelector('#map-stage').classList.add('story-active');
+    this.setRegionDemoPure(story.id === STORY_IDS.SHANDONG_REGION);
     this.root.querySelector('#caption-index').textContent = story.ui?.captionIndex ?? 'BUSINESS STORY / LIVE';
     this.root.querySelector('#scene-title').textContent = story.ui?.captionTitle ?? story.title;
     this.root.querySelector('#scene-subtitle').textContent = story.ui?.captionSubtitle ?? `${story.shipment.origin} → ${story.shipment.destination}`;
@@ -1763,9 +1791,14 @@ export class AppShell {
     const chapterIndex = Math.max(0, chapters.findIndex((chapter) => chapter.stageIds.includes(stage.id)));
     const chapter = chapters[chapterIndex];
     this.root.querySelector('#story-index').textContent = `${chapter.index} / ${String(chapters.length).padStart(2, '0')} · ${chapter.title}`;
-    this.root.querySelector('#caption-index').textContent = `${story.ui?.captionIndex ?? 'BUSINESS STORY'} · ${chapter.index}/${String(chapters.length).padStart(2, '0')}`;
+    const captionIndex = story.ui?.captionIndex ?? 'BUSINESS STORY';
+    this.root.querySelector('#caption-index').textContent = story.ui?.liveCaption === 'stage'
+      ? captionIndex
+      : `${captionIndex} · ${chapter.index}/${String(chapters.length).padStart(2, '0')}`;
     this.root.querySelector('#scene-title').textContent = story.ui?.captionTitle ?? story.title;
-    this.root.querySelector('#scene-subtitle').textContent = `${chapter.title} · ${stage.title}`;
+    this.root.querySelector('#scene-subtitle').textContent = story.ui?.liveCaption === 'stage'
+      ? (stage.subtitle ?? story.ui?.captionSubtitle ?? '')
+      : `${chapter.title} · ${stage.title}`;
     this.root.querySelector('#story-title').textContent = stage.title;
     this.root.querySelector('#story-subtitle').textContent = stage.subtitle;
     this.root.querySelectorAll('[data-story-chapter]').forEach((item, itemIndex) => {
@@ -1813,12 +1846,12 @@ export class AppShell {
 
   updateStoryProgress(overallProgress, stageProgress, stage) {
     this.root.querySelector('#story-progress-bar').style.width = `${Math.min(100, overallProgress * 100).toFixed(2)}%`;
-    const elapsed = Math.round(overallProgress * (this.runtime?.story?.story?.duration ?? 62));
-    const duration = this.runtime?.story?.story?.duration ?? 62;
+    const story = this.runtime?.activeDemo?.()?.story ?? this.runtime?.story?.story;
+    const duration = story?.duration ?? 62;
+    const elapsed = Math.round(overallProgress * duration);
     const formatTime = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     this.root.querySelector('#story-time').textContent = `${formatTime(elapsed)} / ${formatTime(duration)}`;
-    const story = this.runtime?.story?.story;
-    const elapsedSeconds = overallProgress * (story?.duration ?? 72);
+    const elapsedSeconds = overallProgress * duration;
     const chapter = story?.chapters?.find((item) => item.stageIds.includes(stage.id));
     const chapterStages = chapter?.stageIds.map((id) => story.stages.find((item) => item.id === id)).filter(Boolean) ?? [stage];
     const chapterStart = chapterStages[0]?.start ?? stage.start;
@@ -1851,15 +1884,18 @@ export class AppShell {
 
   setStoryPlayback(state) {
     const paused = state === 'paused';
-    const launch = this.root.querySelector(`[data-story-id="${this.runtime?.story?.story?.id}"]`) ?? this.root.querySelector('#story-toggle');
+    const activeId = this.runtime?.activeDemo?.()?.story?.id ?? this.runtime?.story?.story?.id;
+    const launch = this.root.querySelector(`[data-story-id="${activeId}"]`) ?? this.root.querySelector('#story-toggle');
     this.root.querySelectorAll('[data-story-id]').forEach((button) => button.classList.toggle('is-active', button === launch));
     const control = this.root.querySelector('#story-control');
     const hud = this.root.querySelector('#story-hud');
     hud.classList.toggle('is-paused', paused);
-    const follow = this.runtime?.story?.cameraFollow !== false;
+    const follow = this.runtime?.activeDemo?.()?.cameraFollow !== false;
     this.root.querySelector('#story-state').textContent = paused ? 'PAUSED' : follow ? 'FOLLOW' : 'FREE VIEW';
-    launch.querySelector('i').innerHTML = iconSvg(paused ? 'play' : 'pause');
-    launch.querySelector('b').textContent = paused ? '继续播放' : '流程进行中';
+    const icon = launch.querySelector('i');
+    if (icon) icon.innerHTML = iconSvg(paused ? 'play' : 'pause');
+    const title = launch.querySelector('b');
+    if (title) title.textContent = paused ? '继续播放' : '流程进行中';
     control.textContent = paused ? '▶ 继续' : 'Ⅱ 暂停';
   }
 
@@ -1880,8 +1916,9 @@ export class AppShell {
     const hud = this.root.querySelector('#story-hud');
     hud.classList.add('is-complete');
     hud.classList.remove('is-paused');
-    this.root.querySelector('#story-index').textContent = 'COMPLETE / CLOSED LOOP';
-    this.root.querySelector('#caption-index').textContent = `${story.ui?.captionIndex ?? 'BUSINESS STORY'} · COMPLETE`;
+    this.root.querySelector('#story-index').textContent = story.ui?.completeIndex ?? 'COMPLETE / CLOSED LOOP';
+    this.root.querySelector('#caption-index').textContent = story.ui?.completeCaptionIndex
+      ?? `${story.ui?.captionIndex ?? 'BUSINESS STORY'} · COMPLETE`;
     this.root.querySelector('#scene-title').textContent = story.result?.title ?? story.title;
     this.root.querySelector('#scene-subtitle').textContent = story.result?.subtitle ?? '运输任务已形成数据闭环';
     this.root.querySelector('#story-title').textContent = story.result?.title ?? `${story.shipment.destination}签收 · 本单履约完成`;
@@ -1894,8 +1931,10 @@ export class AppShell {
     const completeTime = `${String(Math.floor(story.duration / 60)).padStart(2, '0')}:${String(story.duration % 60).padStart(2, '0')}`;
     this.root.querySelector('#story-time').textContent = `${completeTime} / ${completeTime}`;
     const launch = this.root.querySelector(`[data-story-id="${story.id}"]`) ?? this.root.querySelector('#story-toggle');
-    launch.querySelector('i').innerHTML = iconSvg('replay');
-    launch.querySelector('b').textContent = '重新播放';
+    const icon = launch.querySelector('i');
+    if (icon) icon.innerHTML = iconSvg('replay');
+    const title = launch.querySelector('b');
+    if (title) title.textContent = '重新播放';
     this.root.querySelector('#story-control').textContent = '↻ 重播';
     this.setStoryCameraFollow(false);
     this.root.querySelector('#story-state').textContent = 'CLOSED LOOP';
@@ -1906,20 +1945,29 @@ export class AppShell {
     hud.classList.remove('is-open', 'is-complete', 'is-paused');
     hud.setAttribute('aria-hidden', 'true');
     this.root.querySelector('#map-stage').classList.remove('story-active');
+    this.setRegionDemoPure(false);
     this.root.querySelectorAll('.stack-layer-label').forEach((label) => {
       label.classList.remove('is-story-current', 'is-story-hidden');
       label.style.removeProperty('top');
     });
     this.root.querySelectorAll('[data-story-id]').forEach((launch) => {
       launch.classList.remove('is-active');
-      launch.querySelector('i').innerHTML = iconSvg('play');
-      launch.querySelector('b').textContent = launch.dataset.storyId === STORY_IDS.NORTH_GRAIN ? '北粮南运' : '汽车出海';
+      const icon = launch.querySelector('i');
+      if (icon) icon.innerHTML = iconSvg('play');
+      const labelMap = { [STORY_IDS.NORTH_GRAIN]: '北粮南运', [STORY_IDS.AUTO_PARTS]: '汽车出海', [STORY_IDS.SHANDONG_REGION]: '山东区域' };
+      const title = launch.querySelector('b');
+      if (title) title.textContent = labelMap[launch.dataset.storyId] ?? title.textContent;
     });
     this.root.querySelector('#story-state').textContent = 'AUTO PLAY';
     this.setStoryCameraFollow(true);
     this.root.querySelector('#caption-index').textContent = '01 / NATIONAL PLATFORM VIEW';
     this.root.querySelector('#scene-title').textContent = '全国物流网络';
     this.root.querySelector('#scene-subtitle').textContent = '34 个省级区域 · 3 个物流网络图层 · LOD 0';
+  }
+
+  setRegionDemoPure(enabled) {
+    this.root.querySelector('#map-stage')?.classList.toggle('region-demo-pure', Boolean(enabled));
+    this.root.classList.toggle('region-demo-pure', Boolean(enabled));
   }
 
   updateLayerLabelPositions(positions) {

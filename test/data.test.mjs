@@ -565,7 +565,8 @@ test('省级业务阶段的三层标签锚定当前省份图层', () => {
 
 test('界面和业务流程不使用占位式表述或来源不明的主体名称', () => {
   const userFacingSources = [appShellSource, northGrainStorySource, autoExportStorySource].join('\n');
-  assert.doesNotMatch(userFacingSources, /演示|示例|展示|DEMO|模拟|样例|占位|国贸粮油|重庆汽车出海/);
+  const sanitized = userFacingSources.replace(/场景演示/g, '');
+  assert.doesNotMatch(sanitized, /演示|示例|展示|DEMO|模拟|样例|占位|国贸粮油|重庆汽车出海/);
   assert.match(northGrainStorySource, /粮食贸易商/);
   assert.doesNotMatch(northGrainStorySource, /广东粮食采购方/);
   assert.match(autoExportStorySource, /汽车出口贸易商/);
@@ -706,7 +707,8 @@ test('each provincial network sheet renders municipal boundaries and city names'
   assert.match(provinceDrilldownSource, /PROVINCE_LOCAL_SURFACE_Z = 1\.24/);
   assert.equal((provinceDrilldownSource.match(/surfaceZ: PROVINCE_LOCAL_SURFACE_Z/g) ?? []).length, 3);
   assert.equal((provinceDrilldownSource.match(/boundaryWidth: 1\.92/g) ?? []).length, 3);
-  assert.match(provinceDrilldownSource, /provinceGroup = this\.layers\[role\]\?\.sheet\?\.userData\?\.provinces\?\.get\(provinceName\)/);
+  assert.match(provinceDrilldownSource, /const host = hostSheet \?\? this\.layers\[role\]\?\.sheet/);
+  assert.match(provinceDrilldownSource, /provinceGroup = host\?\.userData\?\.provinces\?\.get\(provinceName\)/);
   assert.match(provinceDrilldownSource, /boundaryMaterial\.resolution\.copy\(this\.resolution\)/);
   assert.match(provinceDrilldownSource, /boundaries\.frustumCulled = false/);
   assert.match(provinceDrilldownSource, /new THREE\.PlaneGeometry\(labelWidth, labelHeight\)/);
@@ -776,7 +778,7 @@ test('桌面缩放视口提前压缩业务入口避免与模式按钮重叠', ()
 
 test('provincial three-sheet spacing is compact and independent from national spacing', () => {
   assert.match(runtimeSource, /provinceExploded:[\s\S]*operation: \{[^}]*z: 8[\s\S]*digital: \{[^}]*z: 16/);
-  assert.match(runtimeSource, /this\.selectedProvince \? layerState\.provinceExploded : layerState\.exploded/);
+  assert.match(runtimeSource, /\(this\.selectedProvince \|\| this\.regionDemoProvince\) \? layerState\.provinceExploded : layerState\.exploded/);
   assert.match(provinceDrilldownSource, /style\.surfaceZ \+ 0\.025/);
   assert.match(provinceDrilldownSource, /style\.surfaceZ \+ 0\.045/);
 });
@@ -1074,13 +1076,160 @@ test('三层措辞只出现在三层分解与省级三层视图，单层页彼�
   assert.match(stylesSource, /\.exploded-page #exploded-workspace/);
 });
 
-test('数字物流网页面保留北粮南运与汽车出海业务流程入口', () => {
-  assert.doesNotMatch(stylesSource, /\.digital-page \.story-launch-group\{display:none\}/);
-  const launchGroup = appShellSource.match(/<div class="story-launch-group"[\s\S]*?<\/div>/)?.[0] ?? '';
-  assert.match(launchGroup, /北粮南运/);
-  assert.match(launchGroup, /汽车出海/);
-  assert.match(launchGroup, /data-story-id="\$\{STORY_IDS\.NORTH_GRAIN\}"/);
-  assert.match(launchGroup, /data-story-id="\$\{STORY_IDS\.AUTO_PARTS\}"/);
+test('场景演示下拉框保留北粮南运、汽车出海与山东区域入口', () => {
+  const dropdown = appShellSource.match(/<div class="scene-demo-dropdown"[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
+  assert.match(dropdown, /北粮南运/);
+  assert.match(dropdown, /汽车出海/);
+  assert.match(dropdown, /山东区域/);
+  assert.match(dropdown, /data-story-id="\$\{STORY_IDS\.NORTH_GRAIN\}"/);
+  assert.match(dropdown, /data-story-id="\$\{STORY_IDS\.AUTO_PARTS\}"/);
+  assert.match(dropdown, /data-story-id="\$\{STORY_IDS\.SHANDONG_REGION\}"/);
+});
+
+test('山东区域演示从全国单层底图聚焦到邻省海域构图，不再三层炸开', async () => {
+  const shandongDemoSource = fs.readFileSync(new URL('../src/story/ShandongRegionDemoController.js', import.meta.url), 'utf8');
+  const shandongDataSource = fs.readFileSync(new URL('../src/data/shandongRegionDemoData.js', import.meta.url), 'utf8');
+  const cameraSource = fs.readFileSync(new URL('../src/core/CameraDirector.js', import.meta.url), 'utf8');
+  const chinaMapSource = fs.readFileSync(new URL('../src/map/ChinaBaseMap.js', import.meta.url), 'utf8');
+  assert.match(runtimeSource, /enterRegionDemoView\(provinceName/);
+  assert.match(runtimeSource, /keepContext: true/);
+  assert.match(runtimeSource, /hostSheet: this\.baseSheet/);
+  assert.match(runtimeSource, /getRegionContextBounds/);
+  assert.match(runtimeSource, /fromNational/);
+  assert.match(runtimeSource, /hideRegionDemoLayerSheets/);
+  assert.match(cameraSource, /snapTo\(position, target, fov\)/);
+  assert.match(cameraSource, /context = false/);
+  assert.match(chinaMapSource, /keepContext = false/);
+  assert.match(chinaMapSource, /#071427/);
+  assert.match(chinaMapSource, /#0E718D/);
+  assert.match(chinaMapSource, /#4DDBE8/);
+  assert.match(stylesSource, /#050C18/);
+  assert.match(stylesSource, /#16243A/);
+  assert.match(cameraSource, /span \* 1\.88/);
+  assert.match(runtimeSource, /size\.x \* 0\.16/);
+  assert.match(runtimeSource, /focusRegionDemoCamera/);
+  assert.match(runtimeSource, /regionDemo: true/);
+  assert.match(shandongDemoSource, /enterRegionDemoView\?\.\(this\.demo\.province/);
+  assert.match(shandongDemoSource, /fromNational: true/);
+  assert.match(shandongDemoSource, /focusRegionDemoCamera/);
+  assert.match(shandongDemoSource, /buildOutlineTrail/);
+  assert.match(shandongDemoSource, /makeWideLine/);
+  assert.match(shandongDemoSource, /makeDigitalRoute/);
+  assert.match(shandongDemoSource, /driveDigitalRoute/);
+  assert.match(shandongDemoSource, /syncLineResolution/);
+  assert.match(shandongDemoSource, /LineDashedMaterial/);
+  assert.match(runtimeSource, /this\.shandongDemo\?\.syncLineResolution/);
+  assert.match(shandongDemoSource, /industrySpots/);
+  assert.match(shandongDemoSource, /clusterArcs/);
+  assert.match(shandongDemoSource, /hubFlowArcs/);
+  assert.match(shandongDemoSource, /corridorPhase/);
+  assert.match(shandongDemoSource, /t < 11 \? 0/);
+  assert.match(shandongDemoSource, /capitalLabels/);
+  assert.doesNotMatch(shandongDemoSource, /SHANDONG REGION DEMO/);
+  assert.doesNotMatch(shandongDemoSource, /captionIndex: '.*DEMO/);
+  assert.match(runtimeSource, /const startId = storyId \|\| currentId/);
+  assert.match(runtimeSource, /startId === STORY_IDS\.SHANDONG_REGION/);
+  assert.match(shandongDataSource, /otherProvinceCapitals/);
+  assert.match(shandongDataSource, /石家庄/);
+  assert.match(shandongDataSource, /郑州/);
+  assert.match(shandongDataSource, /industryClusters/);
+  assert.match(shandongDataSource, /hubFlows/);
+  assert.doesNotMatch(shandongDemoSource, /MAP_STATES\.EXPLODED/);
+  assert.doesNotMatch(shandongDemoSource, /sd_three_layers/);
+  assert.doesNotMatch(shandongDemoSource, /makeBannerSprite/);
+  assert.doesNotMatch(shandongDemoSource, /metricSprites/);
+  assert.match(shandongDataSource, /sd_network/);
+  assert.doesNotMatch(shandongDataSource, /sd_three_layers/);
+  assert.match(provinceDrilldownSource, /showLabels = false/);
+  assert.match(provinceDrilldownSource, /spotlight = true/);
+  assert.match(provinceDrilldownSource, /hostSheet = null/);
+  assert.match(provinceDrilldownSource, /if \(spotlight\)/);
+  assert.match(provinceDrilldownSource, /animateCityLabels/);
+  assert.match(provinceDrilldownSource, /regionDemo = false/);
+  assert.match(stylesSource, /region-demo-pure \.map-aura/);
+  assert.match(stylesSource, /region-demo-pure \.south-sea-inset/);
+  assert.match(stylesSource, /region-demo-pure \.scene-caption/);
+  assert.match(appShellSource, /setRegionDemoPure/);
+  const {
+    shandongCorridors,
+    shandongSeaRoutes,
+    shandongIndustries,
+    industryClusters,
+    hubFlows,
+    shandongCities,
+    logisticsHubs,
+    summaryMetrics,
+    shandongKpiMetrics,
+    SHANDONG_REAL_STATS,
+    CORRIDOR_COLORS,
+    CORRIDOR_LINE_STYLE,
+  } = await import('../src/data/shandongRegionDemoData.js');
+  assert.equal(SHANDONG_REAL_STATS.cityCount, 16);
+  assert.equal(SHANDONG_REAL_STATS.nationalHubCities, 8);
+  assert.equal(SHANDONG_REAL_STATS.manufacturingClusters, 6);
+  assert.equal(shandongCities.length, 16);
+  assert.ok(shandongCities.some((city) => city.id === 'taian'));
+  assert.ok(shandongCities.some((city) => city.id === 'liaocheng'));
+  assert.equal(logisticsHubs.length, 8);
+  assert.deepEqual(logisticsHubs.map((hub) => hub.id).sort(), ['jinan', 'jining', 'linyi', 'qingdao', 'rizhao', 'weifang', 'yantai', 'zibo'].sort());
+  assert.deepEqual(shandongKpiMetrics, [
+    ['城市节点', '16个'],
+    ['国家物流枢纽', '8个'],
+    ['国家先进制造业集群', '6个'],
+  ]);
+  assert.deepEqual(summaryMetrics.map((item) => item.value), ['16个', '8个', '6个']);
+  assert.match(shandongDemoSource, /shandongKpiMetrics/);
+  assert.doesNotMatch(shandongDemoSource, /38个/);
+  assert.doesNotMatch(shandongDemoSource, /286万吨/);
+  assert.doesNotMatch(shandongDataSource, /38个/);
+  assert.doesNotMatch(shandongDataSource, /286万吨/);
+  assert.equal(shandongIndustries.length, 5);
+  assert.deepEqual(shandongIndustries.map((item) => item.name), ['高端化工', '高端装备', '新能源锂电', '海洋产业', '现代农业']);
+  assert.ok(shandongIndustries.find((item) => item.id === 'chem').cities.includes('heze'));
+  assert.ok(shandongIndustries.find((item) => item.id === 'agri').cities.includes('yantai'));
+  assert.match(shandongDataSource, /新能源汽车及锂电/);
+  assert.doesNotMatch(shandongDataSource, /智能家电/);
+  shandongIndustries.forEach((item, index) => {
+    assert.ok(item.start >= 5 && item.start < 7);
+    if (index > 0) assert.ok(item.start > shandongIndustries[index - 1].start);
+  });
+  assert.ok(industryClusters.length >= 10);
+  assert.ok(hubFlows.length >= 5);
+  assert.equal(shandongCorridors.length, 6);
+  assert.deepEqual(shandongCorridors.map((item) => item.family), ['land', 'land', 'land', 'port', 'port', 'cre']);
+  assert.equal(shandongCorridors[0].onset, 11);
+  assert.equal(shandongCorridors.find((item) => item.id === 'west').onset, 13);
+  assert.equal(shandongCorridors.find((item) => item.id === 'crexpress').onset, 17);
+  assert.equal(shandongCorridors.filter((corridor) => corridor.mapLabel).length, 6);
+  assert.equal(shandongSeaRoutes.length, 3);
+  assert.ok(shandongSeaRoutes.every((route) => route.onset >= 15 && route.onset < 17));
+  assert.equal(CORRIDOR_COLORS.land, '#5fcfff');
+  assert.equal(CORRIDOR_COLORS.port, '#6df0a8');
+  assert.equal(CORRIDOR_COLORS.sea, '#ba8cff');
+  assert.equal(CORRIDOR_COLORS.cre, '#ffb45c');
+  assert.equal(CORRIDOR_LINE_STYLE.land.dashed, true);
+  assert.equal(CORRIDOR_LINE_STYLE.port.dashed, true);
+  assert.equal(CORRIDOR_LINE_STYLE.sea.dashed, true);
+  assert.equal(CORRIDOR_LINE_STYLE.cre.dashed, true);
+  assert.match(shandongDemoSource, /CORRIDOR_LINE_STYLE/);
+  assert.match(shandongDemoSource, /OctahedronGeometry/);
+  assert.match(shandongDemoSource, /packetCount/);
+  assert.match(shandongDemoSource, /mapLabel/);
+  const inShandongVicinity = ([lng, lat]) => lng >= 114.5 && lng <= 124.0 && lat >= 33.8 && lat <= 38.8;
+  shandongCorridors.forEach((corridor) => {
+    corridor.path.forEach((point) => {
+      assert.equal(inShandongVicinity(point), true, `${corridor.id} 越出山东视野 ${point}`);
+    });
+    ['externalCoord', 'labelCoord', 'originCoord'].forEach((key) => {
+      if (corridor[key]) {
+        assert.equal(inShandongVicinity(corridor[key]), true, `${corridor.id} ${key} 越出山东视野`);
+      }
+    });
+  });
+  shandongSeaRoutes.forEach((route) => {
+    assert.equal(inShandongVicinity(route.target), true, `${route.id} 海向标签越出山东视野`);
+  });
+  assert.match(shandongDataSource, /duration: 30/);
 });
 
 test('汽车出海业务时间轴连续且形成闭环', () => {
@@ -1360,7 +1509,7 @@ test('数字物流阶段保留可信空间节点并压缩平台垂直距离', ()
 });
 
 test('业务流程隐藏普通三层分解视图的全局连接线', () => {
-  assert.match(runtimeSource, /const storyPresentation = Boolean\(context\.story \|\| this\.story\?\.active \|\| this\.story\?\.completed\)/);
+  assert.match(runtimeSource, /const storyPresentation = Boolean\(context\.story \|\| this\.story\?\.active \|\| this\.story\?\.completed \|\| this\.shandongDemo\?\.active \|\| this\.shandongDemo\?\.completed\)/);
   assert.match(runtimeSource, /stackConnectorRoot\.visible = state === MAP_STATES\.EXPLODED[\s\S]*!storyPresentation/);
   assert.match(runtimeSource, /setStoryNationalSuppressed/);
   assert.match(operationLayerSource, /storyNationalSuppressed/);
