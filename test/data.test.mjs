@@ -1166,7 +1166,9 @@ test('广东区域演示复用省域动画并覆盖产业、枢纽和四向通�
   assert.ok(guangdongIndustryClusters.length >= 18);
   assert.ok(guangdongHubFlows.length >= 10);
   assert.deepEqual(guangdongCorridors.map((item) => item.id), ['north', 'west', 'east', 'prd', 'ports', 'crexpress']);
-  assert.equal(guangdongSeaRoutes.length, 3);
+  assert.equal(guangdongSeaRoutes.length, 4);
+  assert.deepEqual(guangdongSeaRoutes.map((route) => route.label), ['东南亚', '日韩', '中东 · 欧洲', '欧美']);
+  assert.ok(guangdongSeaRoutes.some((route) => route.id === 'sz_eu_us' && route.from === 'shenzhen'));
   assert.deepEqual(guangdongKpiMetrics, [
     ['城市节点', '21个'], ['重点枢纽 / 港口', '8个'], ['重点产业', '6类'],
   ]);

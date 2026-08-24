@@ -167,6 +167,7 @@ export const guangdongSeaRoutes = [
   { id: 'sz_asia', from: 'shenzhen', label: '东南亚', color: CORRIDOR_COLORS.sea, target: [115.76, 21.05], onset: 15.2 },
   { id: 'zh_jpkr', from: 'zhuhai', label: '日韩', color: CORRIDOR_COLORS.sea, target: [114.64, 20.52], onset: 15.8 },
   { id: 'zj_eu', from: 'zhanjiang', label: '中东 · 欧洲', color: CORRIDOR_COLORS.sea, target: [109.92, 20.18], onset: 16.4 },
+  { id: 'sz_eu_us', from: 'shenzhen', label: '欧美', color: CORRIDOR_COLORS.sea, target: [117.10, 20.18], onset: 16.75 },
 ];
 
 export const guangdongSeaLaneLabel = { text: '国际海运 / 航空货运', coord: [113.02, 20.50], onset: 16.6 };
