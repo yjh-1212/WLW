@@ -297,6 +297,17 @@
 @media(max-width:1180px){.story-launch{min-width:42px;width:42px;padding:0;justify-content:center}.story-launch>span{display:none}.scene-demo-trigger>span{display:none}.scene-demo-trigger>small{display:none}.scene-demo-trigger{padding:0;width:42px;min-width:42px;justify-content:center}}
 @media(max-width:1180px){.guangdong-data-panel{right:14px;width:min(380px,40vw)}.guangdong-region-demo.region-demo-pure.story-active .south-sea-inset{right:414px}}
 @media(min-height:780px){.snapshot-stats{gap:6px}.snapshot-stats span{min-height:42px;padding:6px 7px}.snapshot-stats small{font-size:12px}.snapshot-stats b{font-size:15px}.capacity .snapshot-stats b{font-size:14px;letter-spacing:-.03em}.guangdong-data-list article>footer{font-size:8px}}
+@media(max-height:760px) and (min-width:851px){
+  .guangdong-region-demo .story-hud{top:10px;padding:10px 12px 8px}
+  .guangdong-region-demo .story-hud>p,.guangdong-region-demo .story-actors{display:none}
+  .guangdong-region-demo .story-metrics{margin-top:6px}
+  .guangdong-region-demo .story-stage-track{margin-top:6px}
+  .guangdong-region-demo .story-hud>footer{margin-top:6px}
+  .guangdong-data-panel{top:218px;bottom:8px}
+  .guangdong-data-panel>header{height:38px;padding:5px 10px}
+  .guangdong-data-list{height:calc(100% - 38px);gap:6px;padding:6px}
+  .guangdong-data-list article{grid-template-rows:auto minmax(34px,1fr) auto auto;padding:6px 7px 5px}
+}
 @media(max-width:850px){.story-launch{width:36px;min-width:36px;height:36px}.scene-demo-trigger{width:36px;min-width:36px;height:36px;padding:0;justify-content:center}.scene-demo-trigger>span,.scene-demo-trigger>small{display:none}.story-hud{left:12px;right:12px;top:12px;bottom:auto;width:auto;min-width:0;padding:13px 14px 10px;transform:translateY(-16px)}.story-hud.is-open{transform:translateY(0)}.story-shipment{display:none}.story-hud h3{font-size:16px}.story-hud>p{font-size:9px;-webkit-line-clamp:1}.story-metrics{margin-top:7px}.story-metrics span{min-height:42px;padding:6px}.story-metrics b{font-size:9px}.story-actors{min-height:23px}.story-active .south-sea-inset{right:14px;bottom:12px;width:72px;height:104px}.guangdong-data-panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:230px}.guangdong-region-demo.region-demo-pure.story-active .south-sea-inset{display:none!important}}
 @media(max-width:540px){.story-hud{padding:13px 12px 9px}.story-hud>p{display:none}.story-metrics span{padding:6px}.story-stage-track i:nth-child(even){display:none}.story-hud>footer button:last-child{display:none}}
 
