@@ -597,6 +597,9 @@ export class AppShell {
                 <button class="scene-demo-item shandong" role="menuitem" data-story-id="${STORY_IDS.SHANDONG_REGION}">
                   <b>山东区域</b><small>区域物流一张图</small>
                 </button>
+                <button class="scene-demo-item guangdong" role="menuitem" data-story-id="${STORY_IDS.GUANGDONG_REGION}">
+                  <b>广东区域</b><small>珠三角枢纽 · 沿海港口群</small>
+                </button>
               </div>
             </div>
             <div class="search-box">
@@ -620,6 +623,9 @@ export class AppShell {
               <p class="caption-en">National Logistics Network</p>
               <p id="scene-subtitle">34 个省级区域</p>
               <p class="caption-networks">基础设施网 / 物流运营网 / 数字物流网融合</p>
+            </div>
+            <div class="province-drill-hint" id="province-drill-hint" aria-live="polite">
+              <i aria-hidden="true">⌖</i><b>下钻提示</b><span>点击地图中的省份进入省级网络</span>
             </div>
             <section class="province-platform-card" id="province-platform-card" aria-live="polite" aria-hidden="true">
               <header><span>PROVINCIAL LOGISTICS PLATFORM</span><button type="button" data-return-national aria-label="返回全国视角">×</button></header>
@@ -981,6 +987,14 @@ export class AppShell {
       this.root.querySelector('#network-page-title').textContent = heading[0];
       this.root.querySelector('#network-page-lead').textContent = heading[1];
     }
+    const provinceDrillHint = this.root.querySelector('#province-drill-hint span');
+    if (provinceDrillHint && layer) {
+      provinceDrillHint.textContent = {
+        infrastructure: '点击地图中的省份，查看省级基础设施网络',
+        operation: '点击地图中的省份，查看省级物流运行态势',
+        digital: '点击地图中的省份，查看省级数字物流网络',
+      }[layer];
+    }
     const search = this.root.querySelector('#global-search');
     if (search) {
       search.placeholder = layer === 'operation'
@@ -1014,7 +1028,9 @@ export class AppShell {
         ? [`${provinceName} · ${layerLabels[layer][0]}`, `${cityCount} 个地市级边界`]
         : regionalTitles[state] ?? regionalTitles[MAP_STATES.COMBINED];
     }
-    if (!this.runtime?.story?.active && !this.runtime?.story?.completed && !this.runtime?.shandongDemo?.active && !this.runtime?.shandongDemo?.completed) {
+    if (!this.runtime?.story?.active && !this.runtime?.story?.completed
+      && !this.runtime?.shandongDemo?.active && !this.runtime?.shandongDemo?.completed
+      && !this.runtime?.guangdongDemo?.active && !this.runtime?.guangdongDemo?.completed) {
       this.root.querySelector('#scene-title').textContent = title[0];
       this.root.querySelector('#scene-subtitle').textContent = title[1];
       this.root.querySelector('#caption-index').textContent = provinceName ? '02 / PROVINCIAL PLATFORM VIEW' : '01 / NATIONAL PLATFORM VIEW';
@@ -1770,7 +1786,7 @@ export class AppShell {
     hud.classList.remove('is-complete', 'is-paused');
     hud.setAttribute('aria-hidden', 'false');
     this.root.querySelector('#map-stage').classList.add('story-active');
-    this.setRegionDemoPure(story.id === STORY_IDS.SHANDONG_REGION);
+    this.setRegionDemoPure(Boolean(story.ui?.regionDemo));
     this.root.querySelector('#caption-index').textContent = story.ui?.captionIndex ?? 'BUSINESS STORY / LIVE';
     this.root.querySelector('#scene-title').textContent = story.ui?.captionTitle ?? story.title;
     this.root.querySelector('#scene-subtitle').textContent = story.ui?.captionSubtitle ?? `${story.shipment.origin} → ${story.shipment.destination}`;
@@ -1954,7 +1970,12 @@ export class AppShell {
       launch.classList.remove('is-active');
       const icon = launch.querySelector('i');
       if (icon) icon.innerHTML = iconSvg('play');
-      const labelMap = { [STORY_IDS.NORTH_GRAIN]: '北粮南运', [STORY_IDS.AUTO_PARTS]: '汽车出海', [STORY_IDS.SHANDONG_REGION]: '山东区域' };
+      const labelMap = {
+        [STORY_IDS.NORTH_GRAIN]: '北粮南运',
+        [STORY_IDS.AUTO_PARTS]: '汽车出海',
+        [STORY_IDS.SHANDONG_REGION]: '山东区域',
+        [STORY_IDS.GUANGDONG_REGION]: '广东区域',
+      };
       const title = launch.querySelector('b');
       if (title) title.textContent = labelMap[launch.dataset.storyId] ?? title.textContent;
     });

@@ -49,8 +49,9 @@ function makeSprite(text, color, {
   };
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
+    const lines = String(text).split('\n').filter(Boolean);
     canvas.width = 512;
-    canvas.height = 96;
+    canvas.height = lines.length > 1 ? 160 : 96;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.textAlign = 'center';
@@ -59,9 +60,13 @@ function makeSprite(text, color, {
     ctx.strokeStyle = 'rgba(5,12,24,0.92)';
     ctx.lineWidth = 8;
     ctx.font = `700 ${fontSize}px "Microsoft YaHei",sans-serif`;
-    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
     ctx.fillStyle = tint ? color : '#eaf6fb';
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    const lineHeight = fontSize * 1.12;
+    lines.forEach((line, index) => {
+      const y = canvas.height / 2 + (index - (lines.length - 1) / 2) * lineHeight;
+      ctx.strokeText(line, canvas.width / 2, y);
+      ctx.fillText(line, canvas.width / 2, y);
+    });
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.minFilter = THREE.LinearFilter;
@@ -235,10 +240,10 @@ function setSpriteOpacity(sprite, opacity, scaleMul = 1) {
 }
 
 export class ShandongRegionDemoController {
-  constructor(runtime) {
+  constructor(runtime, demo = shandongRegionDemo) {
     this.runtime = runtime;
     this.root = new THREE.Group();
-    this.root.name = 'ShandongRegionDemo';
+    this.root.name = `${demo.province ?? 'Province'}RegionDemo`;
     this.root.visible = false;
     this.runtime.scene.add(this.root);
     this.active = false;
@@ -249,7 +254,7 @@ export class ShandongRegionDemoController {
     this.lastTimestamp = 0;
     this.lastUiUpdate = 0;
     this.built = false;
-    this.demo = shandongRegionDemo;
+    this.demo = demo;
     this.handleControlStart = () => {
       if (!this.active) return;
       this.cameraFollow = false;
@@ -350,8 +355,11 @@ export class ShandongRegionDemoController {
     });
 
     this.industryLabels = demo.industries.map((ind) => {
-      const label = makeSprite(ind.name, ind.color, {
-        width: Math.max(4.2, ind.name.length * 0.92), height: 0.88, fontSize: 36, tint: true,
+      const label = makeSprite((ind.labelLines ?? [ind.name]).join('\n'), ind.color, {
+        width: ind.labelWidth ?? Math.max(4.2, ind.name.length * 0.92),
+        height: ind.labelHeight ?? 0.88,
+        fontSize: ind.labelFontSize ?? 36,
+        tint: true,
       });
       label.position.copy(this.worldCoord(ind.labelCoord, Z_BASE + 0.58));
       label.visible = false;
@@ -589,7 +597,13 @@ export class ShandongRegionDemoController {
     this.syncRootToMap();
     this.resetVisibility();
     this.showHud();
-    this.focusShandong(2.4, { fromNational: true });
+    const initialStage = this.demo.stages[0];
+    if (initialStage) {
+      this.stageIndex = 0;
+      this.runtime.ui.updateStoryStage(initialStage, 0, this.demoAsStory());
+      this.runtime.ui.updateStoryProgress(0, 0, initialStage);
+    }
+    this.focusRegion(2.4, { fromNational: true });
   }
 
   pause() {
@@ -658,10 +672,11 @@ export class ShandongRegionDemoController {
       this.enterStage(stage, safe);
     }
     const progress = clamp01((this.elapsed - stage.start) / Math.max(0.001, stage.end - stage.start));
+    const visualElapsed = this.elapsed + Number(this.demo.visualTimeOffset ?? 0);
     this.syncRootToMap();
     this.syncLineResolution();
-    this.updateVisuals(stage.id, progress, this.elapsed);
-    this.updateOutlineTrail(this.elapsed);
+    this.updateVisuals(stage.id, progress, visualElapsed);
+    this.updateOutlineTrail(visualElapsed);
 
     if (timestamp - this.lastUiUpdate > 80) {
       this.runtime.ui.updateStoryProgress(this.elapsed / this.demo.duration, progress, stage);
@@ -677,10 +692,10 @@ export class ShandongRegionDemoController {
 
   applyStageCam(stageId, dur = 0.75) {
     if (!this.cameraFollow) return;
-    this.focusShandong(dur);
+    this.focusRegion(dur);
   }
 
-  focusShandong(dur, { fromNational = false } = {}) {
+  focusRegion(dur, { fromNational = false } = {}) {
     this.runtime.focusRegionDemoCamera?.(dur, { fromNational });
   }
 
@@ -854,6 +869,26 @@ export class ShandongRegionDemoController {
   }
 
   demoAsStory() {
+    const configured = this.demo.storyPresentation ?? {};
+    if (configured.shipment && configured.ui && configured.result) {
+      return {
+        id: this.demo.id,
+        title: this.demo.title,
+        duration: this.demo.duration,
+        stages: this.demo.stages,
+        chapters: this.demo.chapters,
+        shipment: configured.shipment,
+        flow: configured.flow ?? { originProvince: this.demo.province, destinationProvince: '全国' },
+        ui: configured.ui,
+        result: configured.result,
+        candidates: [],
+        capacityResponses: [],
+        confirmations: [],
+        platforms: [],
+        subjects: [],
+        execution: { modes: [], nodes: [] },
+      };
+    }
     return {
       id: this.demo.id,
       title: this.demo.title,
@@ -870,6 +905,7 @@ export class ShandongRegionDemoController {
       },
       flow: { originProvince: '山东', destinationProvince: '全国' },
       ui: {
+        regionDemo: true,
         captionIndex: '山东省区域物流平台',
         captionTitle: '山东省区域物流平台',
         captionSubtitle: '一张图汇聚全省物流资源，一张网连接国内国际通道',
@@ -890,7 +926,7 @@ export class ShandongRegionDemoController {
         title: '山东省区域物流平台',
         subtitle: '一张图汇聚全省物流资源，一张网连接国内国际物流通道',
         productionImpact: '全省物流一张图',
-        actualDuration: '30s',
+        actualDuration: '28s',
         eventCount: 0,
       },
       candidates: [],

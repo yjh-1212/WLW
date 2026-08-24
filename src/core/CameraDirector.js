@@ -78,7 +78,7 @@ export class CameraDirector {
     const size = box.getSize(new THREE.Vector3());
     const span = Math.max(size.x, size.y);
     if (context) {
-      const distance = THREE.MathUtils.clamp(span * 1.88, 34, 72);
+      const distance = THREE.MathUtils.clamp(span * 1.48, 26, 58);
       this.focusPoint(center, { distance, duration, fov: 26 });
       return;
     }
