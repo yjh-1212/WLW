@@ -540,6 +540,8 @@ test('重庆整车运输任务可沿运营关系连续穿透至上海港', () =>
     ['OP_CHONGQING_BASE', 'OP_WUHAN_CENTER'],
     ['OP_WUHAN_CENTER', 'OP_SHANGHAI_PORT'],
   ]);
+  assert.deepEqual(relations.map((relation) => relation.mode), ['road', 'water', 'water']);
+  assert.equal(task.mode, '江海联运');
   assert.match(runtimeSource, /focusOperationTask\(taskId/);
   assert.match(runtimeSource, /setLod\(2, null\)/);
   assert.match(operationLayerSource, /setTaskFocus\(relationIds = \[\]\)/);
@@ -628,7 +630,7 @@ test('本地业务实体名称、经纬度与地图点位保持一致', () => {
   });
   demoLogisticsStory.execution.nodes.forEach((node) => assert.equal(projector.fromLngLat(node.coordinates).z, 0));
   assert.match(demoLogisticsStory.shipment.origin, /重庆/);
-  assert.match(demoLogisticsStory.shipment.destination, /上海港/);
+  assert.match(demoLogisticsStory.shipment.destination, /上海海通码头/);
 });
 
 test('垂直穿透控制器允许在无选中对象时安全初始化', () => {
@@ -925,7 +927,7 @@ test('山东与广东区域演示保留全国地图的九段线附图', () => {
     stylesSource,
     /\.region-demo-pure\.story-active \.south-sea-inset\{[\s\S]*?display:block!important;[\s\S]*?visibility:visible!important/,
   );
-  assert.match(appShellSource, /setRegionDemoPure\(Boolean\(story\.ui\?\.regionDemo\)\)/);
+  assert.match(appShellSource, /setRegionDemoPure\(Boolean\(story\.ui\?\.regionDemo\), story\.id\)/);
 });
 
 test('基础、运营、数字三个全国单层页同样显示南海诸岛附图', () => {
@@ -1137,8 +1139,9 @@ test('场景演示下拉框保留北粮南运、汽车出海、山东区域与�
   assert.match(dropdown, /data-story-id="\$\{STORY_IDS\.GUANGDONG_REGION\}"/);
 });
 
-test('广东区域演示复用省域动画并覆盖产业、枢纽和四向通道骨架', async () => {
+test('广东区域演示以省内骨干串联并向国内国际延伸', async () => {
   const guangdongDataSource = fs.readFileSync(new URL('../src/data/guangdongRegionDemoData.js', import.meta.url), 'utf8');
+  const regionDemoControllerSource = fs.readFileSync(new URL('../src/story/ShandongRegionDemoController.js', import.meta.url), 'utf8');
   const {
     GUANGDONG_DEMO_STATS,
     guangdongCities,
@@ -1150,6 +1153,7 @@ test('广东区域演示复用省域动画并覆盖产业、枢纽和四向通�
     guangdongLogisticsHubs,
     guangdongRegionDemo,
     guangdongSeaRoutes,
+    guangdongTradeSnapshot,
   } = await import('../src/data/guangdongRegionDemoData.js');
 
   assert.equal(guangdongRegionDemo.id, 'GUANGDONG_REGION_DEMO');
@@ -1163,34 +1167,73 @@ test('广东区域演示复用省域动画并覆盖产业、枢纽和四向通�
   assert.equal(guangdongRegionDemo.chapters.length, 5);
   assert.equal(GUANGDONG_DEMO_STATS.cityCount, 21);
   assert.equal(guangdongCities.length, 21);
-  assert.equal(guangdongIndustries.length, 6);
+  assert.equal(guangdongIndustries.length, 5);
   assert.deepEqual(guangdongIndustries.map((item) => item.name), [
-    '新一代电子信息', '新能源汽车', '绿色石化与新材料',
-    '高端装备与智能制造', '智能家电与现代轻工', '现代农业与食品',
+    '电子信息与智能终端', '汽车与高端装备', '绿色石化与新材料',
+    '生物医药与健康产业', '现代农业与食品消费',
   ]);
   guangdongIndustries.forEach((industry) => {
     assert.equal(industry.labelLines.length, 2, `${industry.id} 应使用紧凑双行标签`);
     assert.ok(industry.labelWidth <= 4, `${industry.id} 标签宽度过大`);
     assert.ok(industry.labelCoord[0] >= 111.2 && industry.labelCoord[0] <= 115.2, `${industry.id} 标签横向越出省域`);
     assert.ok(industry.labelCoord[1] >= 21.5 && industry.labelCoord[1] <= 24.5, `${industry.id} 标签纵向越出省域`);
+    assert.ok(industry.cargoTypes.length >= 3, `${industry.id} 缺少货类与集聚场景`);
+    assert.ok(industry.cluster.length > 0, `${industry.id} 缺少产业集聚区`);
+    assert.ok(industry.corridor.length > 0, `${industry.id} 缺少核心通道与枢纽`);
+    assert.ok(industry.transportModes.length >= 3, `${industry.id} 缺少主要运输方式`);
+    assert.equal(industry.capabilities.length, 2, `${industry.id} 物流能力需求不完整`);
   });
-  assert.equal(guangdongLogisticsHubs.length, 8);
-  assert.ok(guangdongIndustryClusters.length >= 18);
+  assert.equal(guangdongLogisticsHubs.length, 12);
+  assert.deepEqual(
+    guangdongLogisticsHubs.filter((hub) => hub.kind === 'airport').map((hub) => hub.fullName),
+    ['广州白云国际机场', '深圳宝安国际机场'],
+  );
+  assert.ok(guangdongIndustryClusters.length >= 15);
   assert.ok(guangdongHubFlows.length >= 10);
-  assert.deepEqual(guangdongCorridors.map((item) => item.id), ['north', 'west', 'east', 'prd', 'ports', 'crexpress']);
-  assert.equal(guangdongSeaRoutes.length, 4);
-  assert.deepEqual(guangdongSeaRoutes.map((route) => route.label), ['东南亚', '日韩', '中东 · 欧洲', '欧美']);
-  assert.ok(guangdongSeaRoutes.some((route) => route.id === 'sz_eu_us' && route.from === 'shenzhen'));
-  assert.deepEqual(guangdongKpiMetrics, [
-    ['城市节点', '21个'], ['重点枢纽 / 港口', '8个'], ['重点产业', '6类'],
+  assert.deepEqual(guangdongCorridors.map((item) => item.id), [
+    'domestic-north', 'domestic-west', 'domestic-east',
+    'pearl-west-port', 'pearl-east-port', 'west-coast-spine',
   ]);
+  assert.deepEqual(guangdongCorridors.map((item) => item.name), [
+    '北向长江中游与京津冀通道', '西向西南与西部陆海通道', '东向海峡西岸与长三角通道',
+    '珠江西岸至广州港集疏通道', '珠江东岸至深圳港集疏通道', '粤西沿海省内骨干通道',
+  ]);
+  guangdongCorridors.forEach((corridor) => assert.ok(corridor.mapLabel.length >= 4));
+  guangdongCorridors.slice(0, 3).forEach((corridor) => assert.equal(corridor.externalLabel, undefined));
+  guangdongCorridors.slice(3, 5).forEach((corridor) => assert.match(corridor.mapLabel, /→/));
+  assert.equal(guangdongCorridors.at(-1).showDirectionArrow, false);
+  assert.equal(guangdongSeaRoutes.length, 3);
+  assert.deepEqual(guangdongSeaRoutes.map((route) => route.label), ['东盟', '欧美', '日韩海运']);
+  assert.ok(guangdongSeaRoutes.some((route) => route.id === 'sz_asean' && route.target[1] < 21));
+  assert.ok(guangdongSeaRoutes.some((route) => route.id === 'sz_europe_america' && route.target[0] > 114.5 && route.target[1] < 21.5));
+  assert.ok(guangdongSeaRoutes.some((route) => route.id === 'sz_japan_korea' && route.from === 'shenzhen' && route.target[1] > 25));
+  assert.deepEqual(guangdongKpiMetrics, [
+    ['城市节点', '21个'], ['重点枢纽 / 门户', '12个'], ['重点产业', '5类'],
+  ]);
+  assert.equal(guangdongTradeSnapshot.items.length, 4);
+  assert.deepEqual(guangdongTradeSnapshot.items.map((item) => item.module), ['外贸运行', '重点货品', '贸易伙伴TOP5', '物流承载']);
+  assert.match(guangdongTradeSnapshot.items[0].snapshot, /5\.49万亿元/);
+  assert.match(guangdongTradeSnapshot.items[1].snapshot, /集成电路2667亿元/);
+  assert.match(guangdongTradeSnapshot.items[2].snapshot, /东盟8574\.2亿元/);
+  assert.match(guangdongTradeSnapshot.items[3].snapshot, /集装箱8097万TEU/);
+  assert.equal(guangdongRegionDemo.storyPresentation.ui.regionSidePanel, guangdongTradeSnapshot);
   assert.match(guangdongDataSource, /珠三角核心枢纽/);
   assert.match(guangdongDataSource, /沿海港口群/);
-  assert.match(guangdongDataSource, /南北出省通道/);
-  assert.match(guangdongDataSource, /东西向产业联动通道/);
+  assert.match(guangdongDataSource, /珠江西岸至广州港集疏通道/);
+  assert.doesNotMatch(guangdongDataSource, /粤西沿海\s*→\s*广州港/);
+  assert.match(guangdongDataSource, /东向海峡西岸与长三角通道/);
+  assert.doesNotMatch(guangdongDataSource, /深圳港\s*→\s*汕头港/);
+  assert.doesNotMatch(guangdongDataSource, /湛江港\s*→\s*茂名\s*→\s*惠州港/);
   assert.match(runtimeSource, /this\.guangdongDemo = new ShandongRegionDemoController/);
   assert.match(runtimeSource, /startId === STORY_IDS\.GUANGDONG_REGION/);
   assert.match(appShellSource, /story\.ui\?\.regionDemo/);
+  assert.match(appShellSource, /id="guangdong-data-panel"/);
+  assert.match(appShellSource, /renderGuangdongDataPanel/);
+  assert.match(appShellSource, /snapshot-hero/);
+  assert.match(appShellSource, /snapshot-stats/);
+  assert.match(regionDemoControllerSource, /makeRouteArrow/);
+  assert.match(stylesSource, /\.guangdong-region-demo \.guangdong-data-panel\[aria-hidden="false"\]\{display:block\}/);
+  assert.match(stylesSource, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 
   const cityIds = new Set(guangdongCities.map((city) => city.id));
   guangdongIndustries.forEach((industry) => industry.cities.forEach((cityId) => assert.equal(cityIds.has(cityId), true)));
@@ -1198,13 +1241,23 @@ test('广东区域演示复用省域动画并覆盖产业、枢纽和四向通�
     assert.equal(cityIds.has(from), true);
     assert.equal(cityIds.has(to), true);
   });
-  guangdongLogisticsHubs.forEach((hub) => assert.equal(cityIds.has(hub.id), true));
+  guangdongLogisticsHubs.forEach((hub) => {
+    assert.equal(cityIds.has(hub.id) || Array.isArray(hub.coord), true);
+  });
 
   const inGuangdongVicinity = ([lng, lat]) => lng >= 109.5 && lng <= 117.5 && lat >= 19.8 && lat <= 25.8;
+  const inGuangdongSeaContext = ([lng, lat]) => lng >= 109.5 && lng <= 118.5 && lat >= 19.8 && lat <= 25.8;
   guangdongCorridors.forEach((corridor) => {
     corridor.path.forEach((point) => assert.equal(inGuangdongVicinity(point), true, `${corridor.id} 越出广东视野 ${point}`));
   });
-  guangdongSeaRoutes.forEach((route) => assert.equal(inGuangdongVicinity(route.target), true, `${route.id} 越出广东视野 ${route.target}`));
+  guangdongSeaRoutes.forEach((route) => {
+    assert.equal(inGuangdongSeaContext(route.target), true, `${route.id} 越出广东海运视野 ${route.target}`);
+    assert.deepEqual(route.path[0], [114.06, 22.55], `${route.id} 应从深圳港出海`);
+    route.path.forEach((point) => assert.equal(inGuangdongSeaContext(point), true, `${route.id} 海运折点越出视野 ${point}`));
+  });
+  const japanKoreaRoute = guangdongSeaRoutes.find((route) => route.id === 'sz_japan_korea');
+  assert.ok(japanKoreaRoute.path.slice(1, -1).every(([lng, lat]) => lat < 22.1 || lng > 117), '日韩航线应先向东南进入外海，再沿海面北上');
+  assert.ok(japanKoreaRoute.labelCoord[0] > 114.5 && japanKoreaRoute.labelCoord[1] < 22.1, '日韩海运标签应贴近深圳东南外海，不应放在上方陆地区域');
 });
 
 test('山东区域演示从全国单层底图聚焦到邻省海域构图，不再三层炸开', async () => {
@@ -1386,15 +1439,25 @@ test('汽车出海业务时间轴连续且形成闭环', () => {
   assert.equal(demoLogisticsStory.exception.affectedQuantity, 350);
   assert.equal(demoLogisticsStory.exception.timeGap, '1小时30分钟');
   assert.equal(demoLogisticsStory.result.productionImpact, '1,000辆已出境');
-  assert.deepEqual(autoPartsRoute.legs.map((leg) => leg.mode), ['vehicle', 'vehicle', 'rail', 'road', 'sea']);
+  assert.equal(demoLogisticsStory.ui.selectedMode, '长江水运 + 上海港换装');
+  assert.match(demoLogisticsStory.candidates.find((candidate) => candidate.selected).name, /长江水运.+上海港换装/);
+  assert.deepEqual(demoLogisticsStory.execution.modes, ['商品车短驳', '长江水运', '上海港换装', '滚装船']);
+  assert.deepEqual(autoPartsRoute.legs.map((leg) => leg.mode), ['vehicle', 'vehicle', 'water', 'vehicle', 'sea']);
   autoPartsRoute.legs.forEach((leg) => {
     assert.ok(leg.path.length >= 2);
     leg.path.forEach(([longitude, latitude]) => {
       assert.ok(longitude >= 73 && longitude <= 135);
       assert.ok(latitude >= 18 && latitude <= 54);
     });
-    if (leg.mode !== 'sea') assert.match(leg.source, /主要(公路|铁路)\.geojson/);
+    if (leg.mode === 'vehicle') assert.match(leg.source, /主要公路\.geojson/);
   });
+  const river = autoPartsRoute.legs.find((leg) => leg.id === 'yangtzeRiver');
+  assert.ok(river);
+  assert.match(river.label, /重庆果园港.+长江干线.+上海海通码头/);
+  assert.match(river.source, /长江干线港航节点/);
+  assert.ok(river.path.length >= 15);
+  assert.ok(river.path.some(([longitude, latitude]) => longitude > 114 && longitude < 115 && latitude > 30 && latitude < 31));
+  assert.ok(river.path.at(-1)[0] > 121 && river.path.at(-1)[1] > 31);
   assert.match(dataManagerSource, /auto-parts-route\.json/);
   assert.match(appShellSource, /物流可信数据空间/);
   assert.doesNotMatch(appShellSource, /stack-layer-label platform/);
@@ -1597,9 +1660,10 @@ test('汽车出海业务覆盖重庆组织、船期异常、渝沪协同与滚�
   assert.match(storyControllerSource, /stageId === 'digital_penetration'/);
   assert.match(storyControllerSource, /stageId === 'regional_collaboration'/);
   assert.match(storyControllerSource, /mode === 'vehicle'/);
+  assert.match(storyControllerSource, /water: \{ color: '#4fc3ff'/);
   assert.match(runtimeSource, /focusStoryProvince/);
   assert.match(runtimeSource, /setStoryContentIsolation/);
-  assert.match(demoLogisticsStory.result.subtitle, /贸易商组织完成车辆集结、铁路发运、上海集港与滚装装载/);
+  assert.match(demoLogisticsStory.result.subtitle, /贸易商组织完成车辆集结、长江水运、上海港江海换装与滚装装载/);
   assert.match(demoLogisticsStory.result.subtitle, /1,000辆新能源汽车按调整后的作业窗口离港/);
   const drillOperation = demoLogisticsStory.stages.find((stage) => stage.id === 'drill_operation');
   const operationDispatch = demoLogisticsStory.stages.find((stage) => stage.id === 'operation_dispatch');

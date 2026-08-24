@@ -202,9 +202,22 @@ function makeIndustrySpot(color) {
   return g;
 }
 
+function makeRouteArrow(color) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0.16, 0);
+  shape.lineTo(-0.09, 0.09);
+  shape.lineTo(-0.035, 0);
+  shape.lineTo(-0.09, -0.09);
+  shape.closePath();
+  const arrow = new THREE.Mesh(new THREE.ShapeGeometry(shape), glowMat(color, 0.96));
+  arrow.renderOrder = 35;
+  arrow.visible = false;
+  return arrow;
+}
+
 function makeHubNode(kind) {
   const g = new THREE.Group();
-  const coreSize = kind === 'port' ? 0.055 : kind === 'core' ? 0.05 : 0.038;
+  const coreSize = kind === 'port' ? 0.055 : kind === 'airport' ? 0.052 : kind === 'core' ? 0.05 : 0.038;
   const core = new THREE.Mesh(new THREE.SphereGeometry(coreSize, 12, 10), glowMat(THEME.hubFill, 0.96));
   core.position.z = 0.12;
   const ring = new THREE.Mesh(
@@ -215,15 +228,16 @@ function makeHubNode(kind) {
   g.add(core, ring);
   let ring2 = null;
   let ripple = null;
-  if (kind === 'port') {
+  if (kind === 'port' || kind === 'airport') {
+    const accent = kind === 'airport' ? '#F47FD1' : THEME.port;
     ring2 = new THREE.Mesh(
       new THREE.RingGeometry(coreSize + 0.052, coreSize + 0.07, 28),
-      glowMat(THEME.port, 0.42),
+      glowMat(accent, 0.42),
     );
     ring2.position.z = 0.02;
     ripple = new THREE.Mesh(
       new THREE.RingGeometry(coreSize + 0.08, coreSize + 0.11, 28),
-      glowMat(THEME.port, 0),
+      glowMat(accent, 0),
     );
     ripple.position.z = 0.015;
     g.add(ring2, ripple);
@@ -418,16 +432,21 @@ export class ShandongRegionDemoController {
     }).filter(Boolean);
 
     this.hubNodes = (demo.hubs ?? []).map((hub) => {
-      const city = cityMap.get(hub.id);
+      const city = hub.coord
+        ? { id: hub.id, name: hub.name, lng: hub.coord[0], lat: hub.coord[1] }
+        : cityMap.get(hub.id);
       if (!city) return null;
       const node = makeHubNode(hub.kind);
       node.position.copy(this.worldCoord([city.lng, city.lat], Z_BASE + 0.2));
       node.visible = false;
       this.root.add(node);
       const label = makeSprite(hub.name, THEME.hubFill, {
-        width: hub.kind === 'port' ? 3.4 : 2.8, height: 0.76, fontSize: 32, tint: true,
+        width: hub.kind === 'airport' ? 2.7 : hub.kind === 'port' ? 3.4 : 2.8,
+        height: 0.76,
+        fontSize: hub.kind === 'airport' ? 28 : 32,
+        tint: true,
       });
-      label.position.copy(this.worldCoord([city.lng, city.lat + 0.18], Z_BASE + 0.52));
+      label.position.copy(this.worldCoord(hub.labelCoord ?? [city.lng, city.lat + 0.18], Z_BASE + 0.52));
       label.visible = false;
       this.root.add(label);
       return { node, label, hub, city };
@@ -453,13 +472,25 @@ export class ShandongRegionDemoController {
       flow.group.visible = false;
       this.root.add(flow.group);
       const mapLabel = corridor.mapLabel
-        ? makeSprite(corridor.mapLabel, corridor.color, { width: 5.0, height: 1.05, fontSize: 42, tint: true })
+        ? makeSprite(corridor.mapLabel, corridor.color, {
+          width: corridor.labelWidth ?? 5.0,
+          height: corridor.labelHeight ?? 1.05,
+          fontSize: corridor.labelFontSize ?? 42,
+          tint: true,
+        })
         : null;
       if (mapLabel && corridor.labelCoord) {
         mapLabel.position.copy(this.worldCoord(corridor.labelCoord, Z_BASE + 0.6));
         mapLabel.visible = false;
         this.root.add(mapLabel);
       }
+      const directionArrow = makeRouteArrow(corridor.color);
+      const arrowPoint = curve.getPointAt(0.58);
+      const arrowTangent = curve.getTangentAt(0.58).normalize();
+      directionArrow.position.copy(arrowPoint);
+      directionArrow.position.z += 0.06;
+      directionArrow.rotation.z = Math.atan2(arrowTangent.y, arrowTangent.x);
+      this.root.add(directionArrow);
       const originLabel = corridor.originLabel
         ? makeSprite(corridor.originLabel, corridor.color, { width: 5.2, height: 1.0, fontSize: 38, tint: true })
         : null;
@@ -478,17 +509,24 @@ export class ShandongRegionDemoController {
         extLabel.visible = false;
         this.root.add(extLabel);
       }
-      return { ...flow, corridor, mapLabel, originLabel, extLabel };
+      return { ...flow, corridor, mapLabel, originLabel, extLabel, directionArrow };
     });
 
     this.seaVisuals = demo.seaRoutes.map((sr, index) => {
       const fromCity = cityMap.get(sr.from);
       if (!fromCity) return null;
       const start = this.worldCoord([fromCity.lng, fromCity.lat], Z_BASE + 0.22);
-      const end = this.worldCoord(sr.target, Z_BASE + 0.22);
-      const mid = start.clone().lerp(end, 0.5);
-      mid.z += 1.05;
-      const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+      const routeCoords = Array.isArray(sr.path) && sr.path.length >= 2
+        ? sr.path
+        : [[fromCity.lng, fromCity.lat], sr.target];
+      const curve = routeCoords.length > 2
+        ? this.polylineCurve(routeCoords, Z_BASE + 0.22)
+        : (() => {
+          const end = this.worldCoord(routeCoords[1], Z_BASE + 0.22);
+          const mid = start.clone().lerp(end, 0.5);
+          mid.z += 1.05;
+          return new THREE.QuadraticBezierCurve3(start, mid, end);
+        })();
       const seaStyle = CORRIDOR_LINE_STYLE.sea;
       const flow = makeDigitalRoute(curve, {
         color: CORRIDOR_COLORS.sea,
@@ -505,9 +543,9 @@ export class ShandongRegionDemoController {
         speed: seaStyle.speed,
       });
       const label = makeSprite(sr.label, CORRIDOR_COLORS.sea, {
-        width: 3.6, height: 0.86, fontSize: 36, tint: true,
+        width: sr.labelWidth ?? 2.5, height: 0.82, fontSize: 38, tint: true,
       });
-      label.position.copy(this.worldCoord(sr.target, Z_BASE + 0.62));
+      label.position.copy(this.worldCoord(sr.labelCoord ?? sr.target, Z_BASE + 0.62));
       flow.group.add(label);
       flow.group.visible = false;
       this.root.add(flow.group);
@@ -726,11 +764,12 @@ export class ShandongRegionDemoController {
       node.visible = false;
       if (label) label.visible = false;
     });
-    this.corridorVisuals?.forEach(({ group, extLabel, mapLabel, originLabel }) => {
+    this.corridorVisuals?.forEach(({ group, extLabel, mapLabel, originLabel, directionArrow }) => {
       group.visible = false;
       if (extLabel) extLabel.visible = false;
       if (mapLabel) mapLabel.visible = false;
       if (originLabel) originLabel.visible = false;
+      if (directionArrow) directionArrow.visible = false;
     });
     this.seaVisuals?.forEach(({ group }) => { group.visible = false; });
     if (this.seaLaneLabel) this.seaLaneLabel.visible = false;
@@ -744,7 +783,7 @@ export class ShandongRegionDemoController {
     this.industrySpots?.forEach(({ spot, ind }, index) => {
       const appear = smoothStep(t, ind.start, ind.start + 0.5);
       const dim = 1 - 0.62 * corridorPhase;
-      spot.visible = appear > 0.01 && t >= 5;
+      spot.visible = this.demo.showIndustrySpots !== false && appear > 0.01 && t >= 5;
       if (!spot.visible) return;
       spot.scale.setScalar((0.82 + 0.18 * appear) * (0.78 + 0.22 * dim));
       const { ring, ripple, core } = spot.userData;
@@ -795,7 +834,7 @@ export class ShandongRegionDemoController {
       const appear = smoothStep(t, hub.appear, hub.appear + 0.4);
       node.visible = appear > 0.02 && t >= 9;
       if (label) {
-        label.visible = appear > 0.2 && t >= 9;
+        label.visible = hub.showLabel !== false && appear > 0.2 && t >= 9;
         setSpriteOpacity(label, appear * (0.55 + 0.45 * corridorPhase), 0.92 + 0.08 * corridorPhase);
       }
       if (!node.visible) return;
@@ -805,12 +844,17 @@ export class ShandongRegionDemoController {
       const after = t >= 11;
       if (core) {
         core.material.color.set(toNumberColor(
-          kind === 'core' && after ? THEME.coreHub : kind === 'port' && after ? THEME.port : THEME.hubFill,
+          kind === 'core' && after ? THEME.coreHub
+            : kind === 'port' && after ? THEME.port
+              : kind === 'airport' && after ? '#F47FD1'
+                : THEME.hubFill,
         ));
         core.material.opacity = bright;
       }
       if (ring) {
-        ring.material.color.set(toNumberColor(kind === 'port' && after ? THEME.port : THEME.hubRing));
+        ring.material.color.set(toNumberColor(
+          kind === 'port' && after ? THEME.port : kind === 'airport' && after ? '#F47FD1' : THEME.hubRing,
+        ));
         const breath = 1 + 0.08 * Math.sin((t / 1.8) * Math.PI * 2 + index);
         ring.scale.setScalar(breath);
         ring.material.opacity = 0.7 * bright;
@@ -836,10 +880,19 @@ export class ShandongRegionDemoController {
       if (item.group.visible) {
         driveDigitalRoute(item, t, appear);
       }
-      const labelAmt = appear;
+      const labelRetire = Number.isFinite(item.corridor.labelUntil)
+        ? 1 - smoothStep(t, item.corridor.labelUntil, item.corridor.labelUntil + 0.55)
+        : 1;
+      const labelAmt = appear * labelRetire;
       if (item.mapLabel) {
         item.mapLabel.visible = labelAmt > 0.35;
         setSpriteOpacity(item.mapLabel, labelAmt * 0.92);
+      }
+      if (item.directionArrow) {
+        item.directionArrow.visible = item.corridor.showDirectionArrow !== false && labelAmt > 0.3;
+        item.directionArrow.material.opacity = labelAmt * 0.96;
+        const pulse = 0.92 + Math.sin(t * 4.2) * 0.12;
+        item.directionArrow.scale.setScalar(pulse);
       }
       if (item.originLabel) {
         item.originLabel.visible = labelAmt > 0.4;

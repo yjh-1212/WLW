@@ -591,7 +591,7 @@ export class AppShell {
                   <b>北粮南运</b><small>公铁海多式联运</small>
                 </button>
                 <button class="scene-demo-item" role="menuitem" data-story-id="${STORY_IDS.AUTO_PARTS}" id="story-toggle">
-                  <b>汽车出海</b><small>渝沪协同 · 整车出口</small>
+                  <b>汽车出海</b><small>江海联运 · 整车出口</small>
                 </button>
                 <hr aria-hidden="true" />
                 <button class="scene-demo-item shandong" role="menuitem" data-story-id="${STORY_IDS.SHANDONG_REGION}">
@@ -659,6 +659,7 @@ export class AppShell {
                 <div><button id="story-follow" type="button" title="跟随业务镜头；拖拽或滚轮可改为自由视角">◎ 跟随动画</button><button id="story-control" type="button">Ⅱ 暂停</button><button id="story-exit" type="button">退出流程</button></div>
               </footer>
             </section>
+            <aside class="guangdong-data-panel" id="guangdong-data-panel" aria-live="polite" aria-hidden="true"></aside>
             ${renderOperationWorkspace()}
             ${renderInfrastructureWorkspace()}
             ${renderDigitalWorkspace()}
@@ -1786,7 +1787,8 @@ export class AppShell {
     hud.classList.remove('is-complete', 'is-paused');
     hud.setAttribute('aria-hidden', 'false');
     this.root.querySelector('#map-stage').classList.add('story-active');
-    this.setRegionDemoPure(Boolean(story.ui?.regionDemo));
+    this.setRegionDemoPure(Boolean(story.ui?.regionDemo), story.id);
+    this.renderGuangdongDataPanel(story.id === STORY_IDS.GUANGDONG_REGION ? story.ui?.regionSidePanel : null);
     this.root.querySelector('#caption-index').textContent = story.ui?.captionIndex ?? 'BUSINESS STORY / LIVE';
     this.root.querySelector('#scene-title').textContent = story.ui?.captionTitle ?? story.title;
     this.root.querySelector('#scene-subtitle').textContent = story.ui?.captionSubtitle ?? `${story.shipment.origin} → ${story.shipment.destination}`;
@@ -1962,6 +1964,7 @@ export class AppShell {
     hud.setAttribute('aria-hidden', 'true');
     this.root.querySelector('#map-stage').classList.remove('story-active');
     this.setRegionDemoPure(false);
+    this.renderGuangdongDataPanel(null);
     this.root.querySelectorAll('.stack-layer-label').forEach((label) => {
       label.classList.remove('is-story-current', 'is-story-hidden');
       label.style.removeProperty('top');
@@ -1986,9 +1989,47 @@ export class AppShell {
     this.root.querySelector('#scene-subtitle').textContent = '34 个省级区域 · 3 个物流网络图层 · LOD 0';
   }
 
-  setRegionDemoPure(enabled) {
-    this.root.querySelector('#map-stage')?.classList.toggle('region-demo-pure', Boolean(enabled));
+  renderGuangdongDataPanel(panel) {
+    const container = this.root.querySelector('#guangdong-data-panel');
+    if (!container) return;
+    const items = panel?.items ?? [];
+    const visible = items.length > 0;
+    container.setAttribute('aria-hidden', String(!visible));
+    container.innerHTML = visible ? `
+      <header>
+        <span><small>${escapeHtml(panel.eyebrow ?? 'DATA SNAPSHOT')}</small><b>${escapeHtml(panel.title ?? '数据快照')}</b></span>
+        <i>✓ ${escapeHtml(panel.availability ?? '可用')}</i>
+      </header>
+      <div class="guangdong-data-list">
+        ${items.map((item) => {
+          const tone = ['trade', 'goods', 'partners', 'capacity'].includes(item.tone) ? item.tone : 'trade';
+          return `
+          <article class="${tone}" data-snapshot-id="${escapeHtml(item.id)}">
+            <header>
+              <i class="snapshot-icon" aria-hidden="true">${escapeHtml(item.icon ?? '◆')}</i>
+              <b>${escapeHtml(item.module)}</b>
+              <time>${escapeHtml(item.period)}</time>
+            </header>
+            <div class="snapshot-hero">
+              <strong>${escapeHtml(item.hero ?? '—')}</strong>
+              <span><b>${escapeHtml(item.unit ?? '')}</b><small>${escapeHtml(item.heroLabel ?? '')}</small></span>
+            </div>
+            <div class="snapshot-stats">
+              ${(item.stats ?? []).map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('')}
+            </div>
+            <footer><em>来源</em><span>${escapeHtml(item.source)}</span></footer>
+          </article>`;
+        }).join('')}
+      </div>` : '';
+  }
+
+  setRegionDemoPure(enabled, storyId = null) {
+    const mapStage = this.root.querySelector('#map-stage');
+    mapStage?.classList.toggle('region-demo-pure', Boolean(enabled));
     this.root.classList.toggle('region-demo-pure', Boolean(enabled));
+    const guangdong = Boolean(enabled && storyId === STORY_IDS.GUANGDONG_REGION);
+    mapStage?.classList.toggle('guangdong-region-demo', guangdong);
+    this.root.classList.toggle('guangdong-region-demo', guangdong);
   }
 
   updateLayerLabelPositions(positions) {

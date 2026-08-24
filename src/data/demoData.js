@@ -120,7 +120,7 @@ const OPERATION_RELATION_PROFILES = {
   OPR_12: { mode: 'rail', volume: 43, activity: 82 }, OPR_13: { mode: 'rail', volume: 39, activity: 79 },
   OPR_14: { mode: 'rail', volume: 48, activity: 87 }, OPR_15: { mode: 'road', volume: 24, activity: 90 },
   OPR_16: { mode: 'road', volume: 38, activity: 95, taskId: 'OP_TASK_AUTO_EXPORT' },
-  OPR_17: { mode: 'rail', volume: 61, activity: 98, taskId: 'OP_TASK_AUTO_EXPORT' },
+  OPR_17: { mode: 'water', volume: 61, activity: 98, taskId: 'OP_TASK_AUTO_EXPORT', multimodal: true },
   OPR_18: { mode: 'rail', volume: 47, activity: 86, multimodal: true },
   OPR_19: { mode: 'water', volume: 74, activity: 97, taskId: 'OP_TASK_AUTO_EXPORT', multimodal: true },
   OPR_20: { mode: 'rail', volume: 67, activity: 94 }, OPR_21: { mode: 'road', volume: 31, activity: 84 },
@@ -263,7 +263,7 @@ export const operationDashboard = {
   tasks: [
     {
       id: 'OP_TASK_AUTO_EXPORT', code: 'CQ-20260813-028', name: '重庆整车出口运输任务', route: '重庆 → 武汉 → 上海港', status: '执行中', progress: 68, eta: '08-14 14:35',
-      cargo: '整车 382 辆', mode: '公铁水联运', relationIds: ['OPR_16', 'OPR_17', 'OPR_19'],
+      cargo: '整车 382 辆', mode: '江海联运', relationIds: ['OPR_16', 'OPR_17', 'OPR_19'],
       nodes: ['重庆汽车产业货主节点', '重庆整车集散基地', '长江中游运营中心', '上海港运营节点'],
       metrics: [{ label: '任务', value: '126 单' }, { label: '在途', value: '89 单' }, { label: '待装船', value: '18 单' }, { label: '准点率', value: '96.8%' }],
     },
