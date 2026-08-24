@@ -187,9 +187,8 @@
 .digital-page .province-drill-hint i{color:#54e7a2}
 @media(max-width:850px){.province-drill-hint{bottom:18px}.province-drill-hint b{display:none}}
 
-/* 省域场景：纯净模式，只留省域地图、左上文案与场景 HUD */
+/* 省域场景：纯净模式保留省域地图、南海诸岛九段线附图、左上文案与场景 HUD */
 .region-demo-pure .map-aura,
-.region-demo-pure .south-sea-inset,
 .region-demo-pure .stack-layer-labels,
 .region-demo-pure .north-indicator,
 .region-demo-pure .province-platform-card,
@@ -202,6 +201,12 @@
 .app-shell.region-demo-pure #right-drawer{
   display:none !important
 }
+.region-demo-pure.story-active .south-sea-inset{
+  display:block!important;opacity:.94!important;visibility:visible!important;pointer-events:none;
+  left:auto;right:18px;bottom:16px;width:88px;height:126px;z-index:14;
+  border-color:rgba(91,206,255,.30);background:rgba(3,16,28,.78)
+}
+.region-demo-pure.story-active .south-sea-inset svg{height:98px}
 .region-demo-pure .scene-caption{
   display:block;
   left:28px;
