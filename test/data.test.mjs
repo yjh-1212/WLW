@@ -916,6 +916,18 @@ test('南海诸岛附图保留规范要求的关键岛礁与九段断续线', ()
   });
 });
 
+test('山东与广东区域演示保留全国地图的九段线附图', () => {
+  const pureModeHidden = stylesSource.match(
+    /\/\* 省域场景：[\s\S]*?\.app-shell\.region-demo-pure #right-drawer\{[\s\S]*?display:none !important\s*\}/,
+  )?.[0] ?? '';
+  assert.doesNotMatch(pureModeHidden, /south-sea-inset/);
+  assert.match(
+    stylesSource,
+    /\.region-demo-pure\.story-active \.south-sea-inset\{[\s\S]*?display:block!important;[\s\S]*?visibility:visible!important/,
+  );
+  assert.match(appShellSource, /setRegionDemoPure\(Boolean\(story\.ui\?\.regionDemo\)\)/);
+});
+
 test('基础、运营、数字三个全国单层页同样显示南海诸岛附图', () => {
   ['focus-infrastructure', 'focus-operation', 'focus-digital'].forEach((focusClass) => {
     assert.doesNotMatch(stylesSource, new RegExp(`\\.${focusClass}\\s+\\.south-sea-inset`));
@@ -1256,7 +1268,7 @@ test('山东区域演示从全国单层底图聚焦到邻省海域构图，不�
   assert.match(provinceDrilldownSource, /animateCityLabels/);
   assert.match(provinceDrilldownSource, /regionDemo = false/);
   assert.match(stylesSource, /region-demo-pure \.map-aura/);
-  assert.match(stylesSource, /region-demo-pure \.south-sea-inset/);
+  assert.match(stylesSource, /region-demo-pure\.story-active \.south-sea-inset/);
   assert.match(stylesSource, /region-demo-pure \.scene-caption/);
   assert.match(appShellSource, /setRegionDemoPure/);
   const {
