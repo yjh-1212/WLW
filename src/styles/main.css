@@ -228,6 +228,27 @@
 }
 .region-demo-pure .story-shipment{display:none}
 
+/* 广东省演示专属外贸与物流承载快照 */
+.guangdong-data-panel{
+  display:none;position:absolute;right:20px;top:296px;bottom:16px;z-index:14;width:min(430px,40vw);
+  overflow:hidden;
+  border:1px solid rgba(76,202,255,.24);border-radius:10px;background:linear-gradient(150deg,rgba(4,20,34,.88),rgba(3,14,27,.82));
+  box-shadow:0 22px 60px rgba(0,0,0,.34),inset 0 0 34px rgba(44,178,230,.035);backdrop-filter:blur(16px)
+}
+.guangdong-region-demo .guangdong-data-panel[aria-hidden="false"]{display:block}
+.guangdong-data-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;height:42px;padding:7px 11px;border-bottom:1px solid rgba(91,206,255,.14);background:rgba(4,19,32,.96)}
+.guangdong-data-panel>header span{display:grid;gap:3px;min-width:0}.guangdong-data-panel>header small{font-size:8px;letter-spacing:1.4px;color:#58cfff}.guangdong-data-panel>header b{font-size:16px;color:#eefaff;letter-spacing:.04em}
+.guangdong-data-panel>header i{flex:none;padding:5px 7px;border:1px solid rgba(70,230,154,.25);border-radius:3px;background:rgba(70,230,154,.08);color:#72e6ae;font-size:9px;font-style:normal}
+.guangdong-data-list{height:calc(100% - 42px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:7px;padding:7px}
+.guangdong-data-list article{--card-accent:#52d5ff;position:relative;min-width:0;overflow:hidden;display:grid;grid-template-rows:auto minmax(38px,1fr) auto auto;padding:7px 8px 6px;border:1px solid color-mix(in srgb,var(--card-accent) 24%,transparent);border-radius:7px;background:linear-gradient(145deg,color-mix(in srgb,var(--card-accent) 10%,rgba(5,19,31,.92)),rgba(3,14,25,.84));box-shadow:inset 3px 0 0 color-mix(in srgb,var(--card-accent) 72%,transparent)}
+.guangdong-data-list article.goods{--card-accent:#8be89d}.guangdong-data-list article.partners{--card-accent:#aa8bff}.guangdong-data-list article.capacity{--card-accent:#ffb65c}
+.guangdong-data-list article>header{display:grid;grid-template-columns:25px 1fr auto;align-items:center;gap:6px}.snapshot-icon{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;background:color-mix(in srgb,var(--card-accent) 18%,transparent);color:var(--card-accent);font-size:13px;font-style:normal;box-shadow:0 0 12px color-mix(in srgb,var(--card-accent) 18%,transparent)}
+.guangdong-data-list article>header>b{font-size:11px;color:#edfaff;white-space:nowrap}.guangdong-data-list article>header time{padding:2px 4px;border-radius:3px;background:rgba(255,255,255,.05);color:#a4c2cc;font-size:7.5px;white-space:nowrap}
+.snapshot-hero{align-self:center;display:flex;align-items:flex-end;gap:7px;margin:2px 0}.snapshot-hero>strong{color:var(--card-accent);font-size:clamp(30px,2.1vw,42px);line-height:.95;letter-spacing:-.04em;text-shadow:0 0 14px color-mix(in srgb,var(--card-accent) 28%,transparent)}.snapshot-hero>span{display:grid;gap:1px;padding-bottom:1px}.snapshot-hero>span b{font-size:clamp(9px,.62vw,12px);color:#d9edf3}.snapshot-hero>span small{font-size:clamp(8px,.55vw,11px);color:#88a9b4}
+.snapshot-stats{align-self:end;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.snapshot-stats span{min-width:0;min-height:34px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:4px 6px;border-radius:4px;background:rgba(255,255,255,.065)}.snapshot-stats small{max-width:100%;overflow:hidden;color:#a9c0c8;font-size:10.5px;line-height:1.1;white-space:nowrap;text-overflow:ellipsis}.snapshot-stats b{max-width:100%;overflow:hidden;color:#f2fbfd;font-size:13px;line-height:1.1;white-space:nowrap;text-overflow:ellipsis}.goods .snapshot-stats b{color:#aaf4b8}
+.guangdong-data-list article>footer{display:flex;gap:4px;margin-top:4px;color:#7295a0;font-size:6.5px;line-height:1.2;white-space:nowrap;overflow:hidden}.guangdong-data-list article>footer em{flex:none;color:var(--card-accent);font-style:normal}.guangdong-data-list article>footer span{overflow:hidden;text-overflow:ellipsis}
+.guangdong-region-demo.region-demo-pure.story-active .south-sea-inset{right:468px}
+
 .story-hud{
   --stage-progress:0;position:absolute;left:auto;right:24px;top:16px;bottom:auto;z-index:15;width:min(400px,calc(100% - 48px));min-width:0;
   padding:15px 17px 12px;border:1px solid rgba(76,202,255,.28);border-radius:10px;
@@ -274,7 +295,9 @@
    narrower than their contents; otherwise it spills left over the mode nav. */
 @media(max-width:1800px){.story-launch{min-width:108px;padding:0 9px}.story-launch small{display:none}.search-box{width:150px}.scene-demo-trigger{padding:0 10px}}
 @media(max-width:1180px){.story-launch{min-width:42px;width:42px;padding:0;justify-content:center}.story-launch>span{display:none}.scene-demo-trigger>span{display:none}.scene-demo-trigger>small{display:none}.scene-demo-trigger{padding:0;width:42px;min-width:42px;justify-content:center}}
-@media(max-width:850px){.story-launch{width:36px;min-width:36px;height:36px}.scene-demo-trigger{width:36px;min-width:36px;height:36px;padding:0;justify-content:center}.scene-demo-trigger>span,.scene-demo-trigger>small{display:none}.story-hud{left:12px;right:12px;top:12px;bottom:auto;width:auto;min-width:0;padding:13px 14px 10px;transform:translateY(-16px)}.story-hud.is-open{transform:translateY(0)}.story-shipment{display:none}.story-hud h3{font-size:16px}.story-hud>p{font-size:9px;-webkit-line-clamp:1}.story-metrics{margin-top:7px}.story-metrics span{min-height:42px;padding:6px}.story-metrics b{font-size:9px}.story-actors{min-height:23px}.story-active .south-sea-inset{right:14px;bottom:12px;width:72px;height:104px}}
+@media(max-width:1180px){.guangdong-data-panel{right:14px;width:min(380px,40vw)}.guangdong-region-demo.region-demo-pure.story-active .south-sea-inset{right:414px}}
+@media(min-height:780px){.snapshot-stats{gap:6px}.snapshot-stats span{min-height:42px;padding:6px 7px}.snapshot-stats small{font-size:12px}.snapshot-stats b{font-size:15px}.capacity .snapshot-stats b{font-size:14px;letter-spacing:-.03em}.guangdong-data-list article>footer{font-size:8px}}
+@media(max-width:850px){.story-launch{width:36px;min-width:36px;height:36px}.scene-demo-trigger{width:36px;min-width:36px;height:36px;padding:0;justify-content:center}.scene-demo-trigger>span,.scene-demo-trigger>small{display:none}.story-hud{left:12px;right:12px;top:12px;bottom:auto;width:auto;min-width:0;padding:13px 14px 10px;transform:translateY(-16px)}.story-hud.is-open{transform:translateY(0)}.story-shipment{display:none}.story-hud h3{font-size:16px}.story-hud>p{font-size:9px;-webkit-line-clamp:1}.story-metrics{margin-top:7px}.story-metrics span{min-height:42px;padding:6px}.story-metrics b{font-size:9px}.story-actors{min-height:23px}.story-active .south-sea-inset{right:14px;bottom:12px;width:72px;height:104px}.guangdong-data-panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:230px}.guangdong-region-demo.region-demo-pure.story-active .south-sea-inset{display:none!important}}
 @media(max-width:540px){.story-hud{padding:13px 12px 9px}.story-hud>p{display:none}.story-metrics span{padding:6px}.story-stage-track i:nth-child(even){display:none}.story-hud>footer button:last-child{display:none}}
 
 /* ===== Provincial logistics platform drill-down ===== */

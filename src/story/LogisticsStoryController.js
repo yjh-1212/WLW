@@ -16,6 +16,7 @@ const MODE_STYLE = Object.freeze({
   vehicle: { color: '#f5ff8a', casing: '#2a2208', radius: 0.11, label: '商品车运输' },
   road: { color: '#ffbd59', casing: '#2a1708', radius: 0.10, label: '公路' },
   rail: { color: '#80dfff', casing: '#061923', radius: 0.12, label: '铁路' },
+  water: { color: '#4fc3ff', casing: '#05202a', radius: 0.14, label: '长江水运' },
   sea: { color: '#56e6ff', casing: '#05202a', radius: 0.15, label: '海运' },
 });
 
@@ -149,7 +150,15 @@ function makePlatformPod(platform, color) {
 function makeModeMarker(mode) {
   const style = MODE_STYLE[mode] ?? MODE_STYLE.road;
   const root = new THREE.Group();
-  if (mode === 'sea') {
+  if (mode === 'water') {
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.62, 0.28), glowMaterial(style.color, 0.96, THREE.NormalBlending));
+    hull.position.z = 0.04;
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.48, 0.24), glowMaterial('#eafcff', 0.84, THREE.NormalBlending));
+    deck.position.z = 0.30;
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.42), glowMaterial('#ffffff', 0.92, THREE.NormalBlending));
+    bridge.position.set(-0.54, 0, 0.53);
+    root.add(hull, deck, bridge);
+  } else if (mode === 'sea') {
     const hull = new THREE.Mesh(new THREE.ConeGeometry(0.58, 1.65, 5), glowMaterial(style.color, 0.96, THREE.NormalBlending));
     hull.rotation.z = -Math.PI / 2;
     const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.48, 0.42), glowMaterial('#eafcff', 0.92, THREE.NormalBlending));
