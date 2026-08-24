@@ -1234,6 +1234,8 @@ test('广东区域演示以省内骨干串联并向国内国际延伸', async ()
   assert.match(regionDemoControllerSource, /makeRouteArrow/);
   assert.match(stylesSource, /\.guangdong-region-demo \.guangdong-data-panel\[aria-hidden="false"\]\{display:block\}/);
   assert.match(stylesSource, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(stylesSource, /@media\(max-height:760px\) and \(min-width:851px\)/);
+  assert.match(stylesSource, /\.guangdong-data-panel\{top:218px;bottom:8px\}/);
 
   const cityIds = new Set(guangdongCities.map((city) => city.id));
   guangdongIndustries.forEach((industry) => industry.cities.forEach((cityId) => assert.equal(cityIds.has(cityId), true)));
