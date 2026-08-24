@@ -1,8 +1,8 @@
 /**
- * 山东区域物流平台 30 秒场景演示数据
+ * 山东区域物流平台 28 秒场景演示数据
  *
  * 与北粮南运、汽车出海完全隔离，使用独立数据结构驱动 ShandongRegionDemoController。
- * 5–11S 只讲产业聚集；11–19S 才展开物流通道。两阶段不互相叠线。
+ * 开场保留 3 秒省域全景；内部视觉时间整体 +2 秒，复用既有产业与通道动效节奏。
  */
 
 export const REGION_DEMO_THEME = {
@@ -334,11 +334,11 @@ export const summarySlogan = [
 ];
 
 export const shandongStages = [
-  { id: 'sd_focus', start: 0, end: 5, title: '山东省域', subtitle: '全省物流资源与周边通道格局' },
-  { id: 'sd_industry', start: 5, end: 11, title: '产业集群', subtitle: '高端化工、高端装备、新能源汽车及锂电、现代海洋、现代农业与食品向济南、临沂、青岛、日照聚集' },
-  { id: 'sd_corridors', start: 11, end: 19, title: '物流通道', subtitle: '北接京津冀，南联长三角，西通中原，东出青岛、日照、烟台港' },
-  { id: 'sd_network', start: 19, end: 25, title: '通道成网', subtitle: '国内陆路、港口集疏运与国际通道联为一体' },
-  { id: 'sd_overview', start: 25, end: 30, title: '全省格局', subtitle: '一张图汇聚全省物流资源，一张网连接国内国际通道' },
+  { id: 'sd_focus', start: 0, end: 3, title: '山东省域', subtitle: '全省物流资源与周边通道格局' },
+  { id: 'sd_industry', start: 3, end: 9, title: '产业集群', subtitle: '高端化工、高端装备、新能源汽车及锂电、现代海洋、现代农业与食品向济南、临沂、青岛、日照聚集' },
+  { id: 'sd_corridors', start: 9, end: 17, title: '物流通道', subtitle: '北接京津冀，南联长三角，西通中原，东出青岛、日照、烟台港' },
+  { id: 'sd_network', start: 17, end: 23, title: '通道成网', subtitle: '国内陆路、港口集疏运与国际通道联为一体' },
+  { id: 'sd_overview', start: 23, end: 28, title: '全省格局', subtitle: '一张图汇聚全省物流资源，一张网连接国内国际通道' },
 ];
 
 export const shandongChapters = [
@@ -352,7 +352,8 @@ export const shandongChapters = [
 export const shandongRegionDemo = {
   id: 'SHANDONG_REGION_DEMO',
   title: '山东区域物流平台',
-  duration: 30,
+  duration: 28,
+  visualTimeOffset: 2,
   province: '山东',
   cities: shandongCities,
   industries: shandongIndustries,

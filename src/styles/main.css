@@ -166,8 +166,28 @@
 .scene-demo-item b{font-size:11px;letter-spacing:.06em}
 .scene-demo-item small{font-size:8px;color:#78a7bb;letter-spacing:.04em}
 .scene-demo-item.shandong b{color:#a5f562}
+.scene-demo-item.guangdong b{color:#5fd9ff}
 
-/* 山东区域：纯净模式，只留省域地图、左上文案与场景 HUD */
+.province-drill-hint{
+  position:absolute;left:50%;bottom:92px;z-index:10;display:flex;align-items:center;gap:8px;
+  min-height:34px;padding:0 13px;border:1px solid rgba(95,207,255,.22);border-radius:18px;
+  color:#8db1c2;background:rgba(4,24,38,.86);box-shadow:0 10px 28px rgba(0,0,0,.25);
+  backdrop-filter:blur(12px);opacity:0;visibility:hidden;pointer-events:none;
+  transform:translate(-50%,8px);transition:opacity .24s ease,visibility .24s ease,transform .24s ease
+}
+.province-drill-hint i{color:#63dbff;font-size:14px;font-style:normal}
+.province-drill-hint b{color:#dff7ff;font-size:10px;letter-spacing:.08em}
+.province-drill-hint span{font-size:10px;white-space:nowrap}
+.operation-page .view-focus:not(.province-view):not(.story-active) .province-drill-hint{
+  opacity:1;visibility:visible;transform:translate(-50%,0)
+}
+.infra-page .province-drill-hint{border-color:rgba(255,181,71,.28);background:rgba(30,21,9,.88)}
+.infra-page .province-drill-hint i{color:#ffbd5b}
+.digital-page .province-drill-hint{border-color:rgba(70,230,154,.28);background:rgba(5,31,23,.88)}
+.digital-page .province-drill-hint i{color:#54e7a2}
+@media(max-width:850px){.province-drill-hint{bottom:18px}.province-drill-hint b{display:none}}
+
+/* 省域场景：纯净模式，只留省域地图、左上文案与场景 HUD */
 .region-demo-pure .map-aura,
 .region-demo-pure .south-sea-inset,
 .region-demo-pure .stack-layer-labels,

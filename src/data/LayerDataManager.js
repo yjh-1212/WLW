@@ -15,11 +15,13 @@ import { autoPartsStory } from './storyDemoData.js';
 import { northGrainStory } from './northGrainStoryData.js';
 import { YINGKOU_TO_ZHANJIANG_SEA } from './chinaCoastalRoute.js';
 import { shandongRegionDemo } from './shandongRegionDemoData.js';
+import { guangdongRegionDemo } from './guangdongRegionDemoData.js';
 
 export const STORY_IDS = Object.freeze({
   AUTO_PARTS: autoPartsStory.id,
   NORTH_GRAIN: northGrainStory.id,
   SHANDONG_REGION: shandongRegionDemo.id,
+  GUANGDONG_REGION: guangdongRegionDemo.id,
 });
 
 const demoStories = new Map([
